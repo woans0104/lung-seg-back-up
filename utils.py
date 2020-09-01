@@ -81,7 +81,7 @@ class Logger(object):
                 log.append(values)
         return log
 
-DD
+
 def calc_stats(data_root):
 
     data_ids = os.listdir(os.path.join(data_root, 'images'))
