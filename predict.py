@@ -1,24 +1,25 @@
 import os
+import glob
 import argparse
 import json
+import ipdb
+
+import numpy as np
+import matplotlib.pyplot as plt
+
 import torch.utils.data as data
 import torch.backends.cudnn as cudnn
-from medpy.metric import binary
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import glob
-import model
-from model import *
-from utils import Logger,str2bool, draw_curve
-import ipdb
-import dataloader as loader
 import torchvision.transforms as transforms
 
+from medpy.metric import binary
+
+from model import *
+from utils import Logger,str2bool, draw_curve
+import dataloader as loader
 
 
-def main_test(model=None, args=None,test_loader=None,val_mode=False):
+
+def main_test(model=None, args=None,test_loader=None):
 
 
     if args.server == 'server_A':
@@ -36,71 +37,46 @@ def main_test(model=None, args=None,test_loader=None,val_mode=False):
         os.makedirs(result_dir)
 
 
-    # draw curve
-    trn_logger = os.path.join(work_dir, 'train.log')
-    val_logger = os.path.join(work_dir, 'validation.log')
-    trn_log = Logger(trn_logger)
-    val_log = Logger(val_logger)
-
-    draw_curve(result_dir,trn_log,val_log)
-
-
-
     # load model and input stats
-    # Note: here, the model should be given manually
-    # TODO: try to import model configuration later
+
     if model is None:
-        model,model_name = load_model(args.arch)
+        model,model_name = utils.select_model(args.arch)
         model = nn.DataParallel(model).cuda()
         print('+++++++',model_name,"+++++++++")
 
     checkpoint_path = os.path.join(work_dir, 'model_best.pth')
     state = torch.load(checkpoint_path)
     model.load_state_dict(state['state_dict'])
-
     cudnn.benchmark = True
-    #input_stats = np.load(os.path.join(work_dir, 'input_stats.npy')).tolist()
+
+
+    source_dataset, target_dataset1, target_dataset2 = loader.dataset_condition(args.source_dataset)
+    test_data_name_li = [source_dataset, target_dataset1, target_dataset2]
+
 
     collated_performance = {}
-    result_dir_list = []
+    for i in range(len(test_data_name_li)):
 
-    if test_loader is None:
-        # list exam ids
-        test_data_name_list = []
-        for i in range(len(args.test_root)):
-            test_data_name = args.test_root[i].split('/')[-1]
-            prediction_list, org_input_list, org_target_list,img_name_list = predict(args.server,work_dir,model, test_data_name, args=args)
+        if test_loader is None:
+            prediction_li, org_input_li, org_target_li, img_name_li = predict(server=args.server, work_dir=work_dir,
+                                                                              model=model, 
+                                                                              exam_root=test_data_name_li[i],args=args)
+                                                                            
+        else:
+            prediction_li, org_input_li, org_target_li, img_name_li = predict(server=args.server, work_dir=work_dir,
+                                                                              model=model, exam_root=None,
+                                                                              tst_loader=test_loader[i], args=args)
 
-            # measure performance
-            performance = performance_by_slice(prediction_list, org_target_list,img_name_list)
+        # measure performance
+        performance = performance_by_slice(prediction_li, org_target_li,img_name_li)
 
-            result_dir_sep =os.path.join(result_dir,test_data_name)
-            if not os.path.exists(result_dir_sep):
-                os.makedirs(result_dir_sep)
-            result_dir_list.extend(result_dir_sep)
-            test_data_name_list.append(test_data_name)
+        result_dir_sep =os.path.join(result_dir,test_data_name_li[i])
+        if not os.path.exists(result_dir_sep):
+            os.makedirs(result_dir_sep)
 
-            save_fig(org_input_list, org_target_list, prediction_list, performance, result_dir_sep)
-            collated_performance[test_data_name] = performance
 
-    else:
-
-        test_data_name_list = [args.train_dataset,args.test_dataset1,args.test_dataset2]
-
-        for i in range(len(test_loader)):
-
-            prediction_list, org_input_list, org_target_list,img_name_list = predict(args.server,work_dir,model, exam_root=None,tst_loader=test_loader[i], args=args)
-
-            # measure performance
-            performance = performance_by_slice(prediction_list, org_target_list,img_name_list)
-
-            result_dir_sep = os.path.join(result_dir, test_data_name_list[i])
-            if not os.path.exists(result_dir_sep):
-                os.makedirs(result_dir_sep)
-            result_dir_list.extend(result_dir_sep)
-
-            save_fig(org_input_list, org_target_list, prediction_list, performance, result_dir_sep)
-            collated_performance[test_data_name_list[i]] = performance
+        save_fig(org_input_li, org_target_li, prediction_li, performance, result_dir_sep)
+        collated_performance[test_data_name_li[i]] = performance
 
 
     # save_result
@@ -123,10 +99,9 @@ def main_test(model=None, args=None,test_loader=None,val_mode=False):
 
 
 
-
 def predict(server,work_dir,model, exam_root,tst_loader=None, args=None):
 
-    transform1 = transforms.Compose([transforms.ToTensor(),
+    transform = transforms.Compose([transforms.ToTensor(),
                                      transforms.Normalize([0.5],[0.5])])
     if tst_loader == None:
 
@@ -136,49 +111,53 @@ def predict(server,work_dir,model, exam_root,tst_loader=None, args=None):
             ipdb.set_trace()
 
 
-        if  exam_root.lower().split('_')[0] == npy_file[0].lower().split('/')[-1].split('_')[0]:
-            test_data_path =  np.load(npy_file[0]).tolist()
-            test_dataset = loader.CustomDataset(test_data_path[0], test_data_path[1], transform1,dataset=exam_root.lower().split('_')[0])
-            tst_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
+        if  exam_root == npy_file[0].lower().split('/')[-1].split('_')[0]:
+            tst_data_path =  np.load(npy_file[0]).tolist()
+            tst_img_data_path = tst_data_path[0]
+            tst_label_data_path = tst_data_path[1]
+            tst_dataset = loader.Lung_Dataset(tst_img_data_path, tst_label_data_path, transform,dataset=exam_root)
+            tst_loader = data.DataLoader(tst_dataset, batch_size=1, shuffle=False, num_workers=0)
         else:
-            test_data_path, _ = loader.make_dataset(server,exam_root, train_size=1)
-            test_dataset = loader.CustomDataset(test_data_path[0], test_data_path[1], transform1,dataset=exam_root.lower().split('_')[0])
-            tst_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
+            tst_loader = loader.get_loader(server=server,dataset=exam_root,train_size=1,batch_size=1)
 
 
     print('exam_root',exam_root)
     print(len(tst_loader))
-    prob_img_list = []
-    input_img_list = []
-    target_img_list = []
-    image_name_list = []
+
+
+    prob_img_li = []
+    input_img_li = []
+    target_img_li = []
+    image_name_li = []
+
     model.eval()
     with torch.no_grad():
-        for i, (input, target,ori_img,image_name) in enumerate(tst_loader):
+        for i, (input, target,img_ori,image_name) in enumerate(tst_loader):
 
             input = input.cuda()
+
             try:
                 output = model(input)
             except:
-                output,_,_ = model(input)
+                output,_ = model(input)
 
             # convert to prob
 
             pos_probs = torch.sigmoid(output[0])
             pos_probs = pos_probs.squeeze().cpu().numpy()
-            input_ = ori_img.squeeze().cpu().numpy()
-            target_ = target.squeeze().cpu().numpy()
+            img_ori = img_ori.squeeze().cpu().numpy()
+            target = target.squeeze().cpu().numpy()
 
-            prob_img_list.append(pos_probs)
-            input_img_list.append(input_)
-            target_img_list.append(target_)
+            prob_img_li.append(pos_probs)
+            input_img_li.append(img_ori)
+            target_img_li.append(target)
 
             image_name = image_name[0].split('/')[-1].split('.png')[0]
-            image_name_list.append(image_name)
+            image_name_li.append(image_name)
 
 
         print('end---------')
-        return prob_img_list, input_img_list, target_img_list,image_name_list
+        return prob_img_li, input_img_li, target_img_li,image_name_li
 
 
 
@@ -232,14 +211,13 @@ def performance_by_slice(output_list, target_list,img_name_list):
 
         # TODO: not need to store gt and pred
         performance[str(i)] = {'cls': [tp, fp, tn, fn],
-                                  'seg': [iou, dice],
-                                  'gt': slice_target,
-                                  'pred': slice_pred,
-                               'img':img_name_list[i],
-                               'acd_se':acd_se,
-                               'asd_se': asd_se,
+                                'seg': [iou, dice],
+                                'gt': slice_target,
+                                'pred': slice_pred,
+                                'img':img_name_list[i],
+                                'acd_se':acd_se,
+                                'asd_se': asd_se,
                                }
-        #'pixel': [gt_pixel, pred_pixel],
 
     return performance
 
@@ -268,89 +246,10 @@ def compute_overall_performance(collated_performance):
 
     return { 'confusion_matrix': list(confusion_matrix),
              'slice_level_accuracy': (confusion_matrix[0] + confusion_matrix[2]) / confusion_matrix.sum(),
-             'segmentation_performance': [iou_mean, dice_mean] , 'distance_performance[acd,asd]':[acd_se_mean,asd_se_mean]}
+             'segmentation_performance': [iou_mean, dice_mean] ,
+             'distance_performance[acd,asd]':[acd_se_mean,asd_se_mean]}
 
 
-def compute_overall_pixel(collated_performance):
-
-    confusion_matrix = np.zeros((4,))
-    iou_sum = dice_sum = n_valid_slices = 0
-
-    gt_pixel=[]
-    pred_pixel=[]
-
-    tp_pixel_gt = []
-    tp_pixel_pred = []
-    fp_pixel_gt = []
-    fp_pixel_pred = []
-    tn_pixel_gt = []
-    tn_pixel_pred = []
-    fn_pixel_gt = []
-    fn_pixel_pred = []
-
-    for res_exam in collated_performance.values():
-        for res_slice in res_exam.values():
-
-            gt_pixel.extend([res_slice['pixel_num'][0]])
-            pred_pixel.extend([res_slice['pixel_num'][1]])
-
-            #cls: [tp, fp, tn, fn]
-
-            if res_slice['cls'][0] == 1:
-                tp_pixel_gt.extend([res_slice['pixel_num'][0]])
-                tp_pixel_pred.extend([res_slice['pixel_num'][1]])
-            elif res_slice['cls'][1] == 1:
-                fp_pixel_gt.extend([res_slice['pixel_num'][0]])
-                fp_pixel_pred.extend([res_slice['pixel_num'][1]])
-            elif res_slice['cls'][2] == 1:
-                tn_pixel_gt.extend([res_slice['pixel_num'][0]])
-                tn_pixel_pred.extend([res_slice['pixel_num'][1]])
-            elif res_slice['cls'][3] == 1:
-                fn_pixel_gt.extend([res_slice['pixel_num'][0]])
-                fn_pixel_pred.extend([res_slice['pixel_num'][1]])
-
-            confusion_matrix += np.array(res_slice['cls'])
-            if res_slice['gt'].sum() != 0: # consider only annotated slices
-                iou_sum += res_slice['seg'][0]
-                dice_sum += res_slice['seg'][1]
-                n_valid_slices += 1
-
-
-    iou_mean = iou_sum / n_valid_slices
-    dice_mean = dice_sum / n_valid_slices
-
-
-    return {'confusion_matrix': list(confusion_matrix),
-            'slice_level_accuracy': (confusion_matrix[0] + confusion_matrix[2]) / confusion_matrix.sum(),
-            'segmentation_performance': [iou_mean, dice_mean],
-            }
-
-
-def load_model(network):
-
-    if network == 'unet':
-        my_net = Unet2D(in_shape=(1, 256, 256))
-    elif network == 'unet_style':
-        my_net = Unet2D_style(in_shape=(1, 256, 256),style=args.style)
-    elif network == 'unet_tanh':
-        my_net = Unet2D_tanh(in_shape=(1, 256, 256))
-    else:
-        raise ValueError('Not supported network.')
-
-    model_name = str(my_net).split('(')[0]
-
-    return my_net, model_name
-
-
-
-def save_layer_fig(model,exam_id, org_input, org_target, prediction,
-             slice_level_performance, result_dir):
-    result_exam_dir = os.path.join(result_dir, exam_id)
-    if not os.path.exists(result_exam_dir):
-        os.makedirs(result_exam_dir)
-
-    for name, param in model.named_parameters():
-        print(name, '\t\t', param.shape)
 
 
 def save_fig( org_input, org_target, prediction,
@@ -409,9 +308,12 @@ def save_fig( org_input, org_target, prediction,
         ax.append(fig.add_subplot(1,3,3))
         plt.imshow(_overlay_mask(input_slice, pred_slice, color='blue'))
         try:
-            ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%) \n acd ={3:.3f} asd = {4:.3f}'.format(iou, pred_slice_pos_pixel, pred_slice_pos_pixel_rate,acd,asd))
+            ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%) '
+                             '\n acd ={3:.3f} asd = {4:.3f}'
+                             .format(iou, pred_slice_pos_pixel, pred_slice_pos_pixel_rate,acd,asd))
         except:
-            ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%) \n acd =None asd = None'.format(iou,pred_slice_pos_pixel, pred_slice_pos_pixel_rate))
+            ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%) '
+                             '\n acd =None asd = None'.format(iou,pred_slice_pos_pixel, pred_slice_pos_pixel_rate))
 
 
         # remove axis
@@ -429,55 +331,21 @@ def save_fig( org_input, org_target, prediction,
         plt.close()
 
 
-def seperate_dict(ori_dict, serch_list):
-    new_dict = {}
-    for i in serch_list:
-        if i in ori_dict:  # key가 int인지 str인지 확인 필요
-            new_dict[i] = ori_dict[i]
-    return new_dict
-
-def make_save_performance(collated_performance,level_id,dir_path,file_name,save_mode=False):
-    sep_dict = seperate_dict(collated_performance, level_id)
-    #overall_performance = compute_overall_performance(sep_dict)
-    overall_performance = compute_overall_pixel(sep_dict)
-    if save_mode:
-        with open(os.path.join(dir_path, '{}_performance.json'.format(str(file_name))), 'w') as f:
-            json.dump(overall_performance, f)
-    return overall_performance
-
-
-
-import decimal
-class DecimalEncoder(json.JSONEncoder):
-    def _iterencode(self, o, markers=None):
-        if isinstance(o, decimal.Decimal):
-            # wanted a simple yield str(o) in the next line,
-            # but that would mean a yield on the line with super(...),
-            # which wouldn't work (see my comment below), so...
-            return (str(o) for o in [o])
-        return super(DecimalEncoder, self)._iterencode(o, markers)
-
-
-
 
 if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--server', default='server_B')
-    parser.add_argument('--test-root', default=['/data2/lung_segmentation_dataset/JSRT_dataset','/data2/lung_segmentation_dataset/MC_modified_dataset',
-                                                '/data2/lung_segmentation_dataset/SH_dataset'], nargs='+', type=str)
-
-    parser.add_argument('--train-dataset', default='MC_modified', help='JSRT_dataset,MC_dataset,SH_dataset')
-    parser.add_argument('--test-dataset1', default='JSRT', help='JSRT_dataset,MC_dataset,SH_dataset')
-    parser.add_argument('--test-dataset2', default='SH', help='JSRT_dataset,MC_dataset,SH_dataset')
-
-
-    parser.add_argument('--batch-size', default=1, type=int)
     parser.add_argument('--work-dir', default='/data1/JM/lung_segmentation')
     parser.add_argument('--exp', type=str)
-    parser.add_argument('--arch', default='unet', type=str)
-    parser.add_argument('--style', default=0, type=int)
     parser.add_argument('--file-name', default='result_all_acd', type=str)
+
+    parser.add_argument('--source-dataset', default='JSRT', help='JSRT_dataset,MC_dataset,SH_dataset')
+
+    parser.add_argument('--arch', default='unet', type=str)
+    parser.add_argument('--batch-size', default=1, type=int)
+    parser.add_argument('--style', default=0, type=int)
+
 
     args = parser.parse_args()
 

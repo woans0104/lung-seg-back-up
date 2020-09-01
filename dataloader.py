@@ -1,186 +1,42 @@
-from torch.utils.data.dataset import Dataset
-import numpy as np
-import torchvision.transforms as transforms
-import random
-import glob
+
 import os
-import cv2
-import torch.utils.data as data
+import glob
+import random
+import numpy as np
 import ipdb
+
+import torchvision.transforms as transforms
+import torch.utils.data as data
+from torch.utils.data.dataset import Dataset
+
+import cv2
 from PIL import Image
 
 
-# from scipy.misc import imread, imresize,imsave
 
 
-class CustomDataset(Dataset):
+class Lung_Dataset(Dataset):
 
-    def __init__(self, image_paths, target_paths, transform1, arg_mode=False, arg_thres=0, arg_range='arg1',
-                 dataset='mc'):  # initial logic happens like transform
+    def __init__(self, image_paths, target_paths, transform, aug_mode=False,aug_range='aug6',dataset='mc'):
+
 
         self.image_paths = image_paths
         self.target_paths = target_paths
-        self.transforms1 = transform1
-        self.arg_mode = arg_mode
-        self.arg_thres = 0.5
-        self.arg_range = arg_range
+        self.transforms = transform
+        self.aug_mode = aug_mode
+        self.aug_range = aug_range
         self.dataset = dataset
 
-    def arg(self, image, arg_thres, arg_range):
-        """
-        # Resize
 
-        resize = transforms.Resize(size=(256, 256))
-        image = resize(image)
-        mask = resize(mask)
-        """
+    def aug(self, image, aug_range):
+
+
         # transform pil image
         pil_image = transforms.ToPILImage()
         image = pil_image(image)
 
-        # from PIL import Image
-        # image = Image.fromarray(image)
-        # print(type(image))
-        """
-        # Random horizontal flipping
-        horizontal=random.random()
-        #print('horizontal flipping', horizontal)
-        if horizontal > 0.5:
-            image = transforms.functional.hflip(image)
-            mask = transforms.functional.hflip(mask)
 
-        # Random vertical flipping
-        vertical=random.random()
-        #print('vertical flipping', vertical)
-        if vertical > 0.5:
-            image = transforms.functional.vflip(image)
-            mask = transforms.functional.vflip(mask)
-
-        # Random rotation
-        Rrotation = random.random()
-        #print('Rrotation', Rrotation)
-        if Rrotation > 0.5:
-            angle = random.randint(-30, 30)
-            image = transforms.functional.rotate(image,angle)
-            mask = transforms.functional.rotate(mask,angle)
-        """
-
-        brightness = random.random()
-        contrast = random.random()
-
-        if arg_range == 'arg1':
-            import ipdb;
-            ipdb.set_trace()
-            if brightness > arg_thres and contrast > arg_thres:
-
-                brightness_factor = random.uniform(0.5, 1.0)
-                image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                contrast_factor = random.uniform(0.8, 1.3)
-                image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-
-            else:
-                if brightness > arg_thres:
-                    brightness_factor = random.uniform(0.3, 1.1)
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                if contrast > arg_thres:
-                    contrast_factor = random.uniform(0.7, 1.0)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-        elif arg_range == 'arg2':
-            import ipdb;
-            ipdb.set_trace()
-            if brightness > arg_thres and contrast > arg_thres:
-
-                brightness_factor = random.uniform(0.5, 1.0)
-                image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                contrast_factor = random.uniform(0.3, 0.8)
-                image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-
-            else:
-                if brightness > arg_thres:
-                    brightness_factor = random.uniform(0.3, 1.1)
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                if contrast > arg_thres:
-                    contrast_factor = random.uniform(0.3, 0.8)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-        elif arg_range == 'arg3':
-
-            # brightness
-            # brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-            brightness_factor = random.uniform(0.3, 1.1)
-            image1 = transforms.functional.adjust_brightness(image, brightness_factor)
-
-            # contrast
-            # contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-            contrast_factor = random.uniform(0.3, 1.1)
-            image = transforms.functional.adjust_contrast(image1, contrast_factor)
-
-            # #brightness
-            # brightness_factor = random.uniform(0.6, 1.1)
-            # image1 = transforms.functional.adjust_brightness(image, brightness_factor)
-            #
-            # #contrast
-            # contrast_factor = random.uniform(0.6, 1.1)
-            # image = transforms.functional.adjust_contrast(image1, contrast_factor)
-
-
-
-        elif arg_range == 'arg4':
-            random_factor1 = random.random()
-            random_factor2 = random.random()
-
-            if random_factor1 > 0.5:
-
-                # brightness
-                brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                image1 = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                # contrast
-                contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                image = transforms.functional.adjust_contrast(image1, contrast_factor)
-
-
-            else:
-
-                if random_factor2 > 0.5:
-                    brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                else:
-                    contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-
-        elif arg_range == 'arg5':
-            random_factor1 = random.random()
-            random_factor2 = random.random()
-            brightness_factor = 0.5
-
-            if random_factor1 > 0.5:
-                # brightness
-                brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-            if random_factor2 > 0.5:
-
-                if brightness_factor > 0.8:
-                    # contrast
-                    # print(brightness_factor)
-                    contrast_factor = np.round((random.uniform(0.8, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-                else:
-                    # contrast
-                    contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-        elif arg_range == 'arg6':
+        if aug_range == 'aug6':
             random_factor1 = random.random()
             random_factor2 = random.random()
 
@@ -210,99 +66,29 @@ class CustomDataset(Dataset):
                     image = transforms.functional.adjust_contrast(image, contrast_factor)
 
 
-        elif arg_range == 'arg7':
+        elif aug_range == 'aug9':
 
-            # original img 0.5 augmentation 0.5
+            brightness_factor = random.uniform(0.8, 1.2)
+            image = transforms.functional.adjust_brightness(image, brightness_factor)
 
-            random_factor0 = random.random()
-            random_factor1 = random.random()
-            random_factor2 = random.random()
+            contrast_factor = random.uniform(0.8, 1.2)
+            image = transforms.functional.adjust_contrast(image, contrast_factor)
 
+        elif aug_range == 'aug10':
 
-            if random_factor0 > arg_thres:
-                if random_factor1 > 0.5:
+            brightness_factor = random.uniform(0.6, 1.2)
+            image = transforms.functional.adjust_brightness(image, brightness_factor)
 
-                    # brightness
+            contrast_factor = random.uniform(0.6, 1.2)
+            image = transforms.functional.adjust_contrast(image, contrast_factor)
 
-                    brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                    if brightness_factor > 0.8:
-
-                        # contrast
-
-                        contrast_factor = np.round((random.uniform(0.8, 1.1)), 1)
-                        image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-                    else:
-
-                        # contrast
-
-                        contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                        image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-                else:
-                    if random_factor2 > 0.5:
-
-                        brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                        image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                    else:
-                        contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                        image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-
-
-        elif arg_range == 'arg8':
-
-            # min range up , max range up
-
-            random_factor1 = random.random()
-            random_factor2 = random.random()
-
-            if random_factor1 > 0.5:
-
-                # brightness
-                brightness_factor = np.round((random.uniform(0.5, 1.2)), 1)
-                image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                if brightness_factor > 0.8:
-                    # contrast
-                    contrast_factor = np.round((random.uniform(0.8, 1.2)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-                else:
-                    # contrast
-                    contrast_factor = np.round((random.uniform(0.5, 1.2)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-            else:
-
-                if random_factor2 > 0.5:
-                    brightness_factor = np.round((random.uniform(0.5, 1.2)), 1)
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
-
-                else:
-                    contrast_factor = np.round((random.uniform(0.5, 1.2)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
-
-
-
-
-
-
-        else:
-            import ipdb;
-            ipdb.set_trace()
-
-        # Transform to tensor
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
 
         image = np.array(image)
 
+
         return image
+
+
 
     def __getitem__(self, index):
 
@@ -317,72 +103,137 @@ class CustomDataset(Dataset):
         # jsrt dataset= invert
         if self.dataset.lower() == 'jsrt':
             image = cv2.bitwise_not(image)
-            # print('invert')
+
 
         # cv2 resize
         image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
         mask = cv2.resize(mask, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
 
-        # arg
-        if self.arg_mode:
-            image = self.arg(image, self.arg_thres, self.arg_range)
+        # aug
+        if self.aug_mode:
+            image = self.aug(image,self.aug_range)
 
-        t_image = self.transforms1(image)
+        image_tensor = self.transforms(image)
 
         if np.max(mask) > 1:
             mask = mask / 255
             mask[mask > 0.5] = 1
             mask[mask < 0.5] = 0
 
-        mask = np.expand_dims(mask, -1)
         mask = mask * 255
+        mask = np.expand_dims(mask, -1)
         mask = np.array(mask, dtype=np.uint8)
 
         assert len(set(mask.flatten())) == 2, 'mask label is wrong'
 
-        totensor = transforms.ToTensor()
-        t_mask = totensor(mask)
+        toTensor = transforms.ToTensor()
+        mask_tensor = toTensor(mask)
 
-        return t_image, t_mask, image, image_name
+
+        return image_tensor, mask_tensor, image, image_name
 
     def __len__(self):  # return count of sample we have
 
         return len(self.image_paths)
 
 
-def make_SHdataset(folder_data, folder_mask):
-    folder_data = np.array(sorted(folder_data))
-    folder_mask = np.array(sorted(folder_mask))
-
-    # list name sort
-    list_dataName = []
-    for i in range(len(folder_data)):
-        data_name = folder_data[i].split('/')[-1].split('.')[0]
-        list_dataName.append(data_name)
-
-    listdata = []
-    for i in folder_mask:
-        try:
-            mask_name = i.split('/')[-1].split('.')[0].split('_mask')[0]
-            list_dataName = np.array(list_dataName)
-
-            idx = np.where(list_dataName == mask_name)[0][0]
-
-            listdata.append(folder_data[idx])
-        except IndexError:
-            continue
-
-    return listdata, folder_mask
 
 
-def make_dataset(server, dataset, train_size):
-    # simple division : train_size_6,val_size_2,test_size_2
-    # if valsize == false : train_size_7, test_size_3
+def dataset_condition(trainset_condition):
+    dataset = {
+        'JSRT': ['MC_modified', 'SH'],
+        'MC_modified': ['JSRT', 'SH'],
+        'SH': ['JSRT', 'MC_modified']
+    }
+
+    if train_dataset in dataset.keys():
+        print('train dataset : ', train_dataset)
+        print('test dataset1 : ', dataset[condition][0])
+        print('test dataset2 : ', dataset[condition][1])
+
+        train_datset = trainset_condition
+        test_dataset1 = dataset[trainset_condition][0]
+        test_dataset2 = dataset[trainset_condition][1]
+
+        return train_datset, test_dataset1, test_dataset2
+
+    else:
+        import ipdb;
+        ipdb.set_trace()
+
+
+
+def get_loader(server, dataset, train_size, arg_mode, batch_size, work_dir=None):
+    train_image_path, train_label_path, test_image_path, test_label_path = load_data_path(server, dataset,
+                                                                                                 train_size=train_size)
+
+    if train_size != 1:
+        np.save(os.path.join(work_dir, '{}_test_path.npy'.format(args.train_dataset)),
+                [test_image_path, test_label_path])  ########
+
+    # transform
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize([0.5], [0.5])])
+
+    train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, arg_mode=arg_mode,
+                                        dataset=dataset)
+    train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
+    test_dataset = CustomDataset(test_image_path, test_label_path, transform,
+                                        dataset=train_dataset)
+    test_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
+
+    if train_size != 1:
+
+        return train_loader, test_loader
+
+    else:
+        return train_loader
+
+
+
+def load_data_path(server, dataset, train_size):
+
     print('now dataset', dataset)
-    # MC_dataset : not modified
+    
+    
+    def read_data(data_folder):
 
-    valid_exts = ['.jpg', '.gif', '.png', '.tga', '.jpeg']  # 이 확장자들만 불러오겠다.
+        valid_exts = ['.jpg', '.gif', '.png', '.tga', '.jpeg']
 
+        data_paths = []
+        for f in data_folder:
+            ext = os.path.splitext(f)[1]
+
+            if ext.lower() not in valid_exts:
+                continue
+            data_paths.append(f)
+
+        return data_paths
+
+    def match_data_path(img_path, target_path):
+        img_path = np.array(sorted(img_path))
+        target_path = np.array(sorted(target_path))
+
+        # list name sort
+        imgName_li = []
+        for i in range(len(img_path)):
+            img_name = img_path[i].split('/')[-1].split('.')[0]
+            imgName_li.append(img_name)
+
+        targetName_li = []
+        for i in range(len(target_path)):
+            img_name = target_path[i].split('/')[-1].split('.')[0].split('_mask')[0]
+            targetName_li.append(img_name)
+
+        img_path = img_path[imgName_li == targetName_li]
+
+        return img_path, target_path
+
+
+    dataset = dataset + '_dataset'
+    
+    
     if server == 'server_A':
         image_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/label/*".format(dataset)))
@@ -390,38 +241,23 @@ def make_dataset(server, dataset, train_size):
         image_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/label/*".format(dataset)))
 
-    # 폴더 안의 확장자들만 가져오기
 
-    image_paths = []
-    for f in image_folder:
-        ext = os.path.splitext(f)[1]  # 확장자만 가져오기
-
-        if ext.lower() not in valid_exts:
-            continue
-        image_paths.append(f)
-
-    target_paths = []
-    for f in target_folder:
-        ext = os.path.splitext(f)[1]  # 확장자만 가져오기
-        if ext.lower() not in valid_exts:
-            continue
-        target_paths.append(f)
+    image_paths =read_data(image_folder)
+    target_paths = read_data(target_folder)
 
     if len(image_paths) != len(target_paths):
-        image_paths, target_paths = make_SHdataset(image_paths, target_paths)
+        image_paths, target_paths = match_data_path(image_paths, target_paths)
+
+    assert len(image_paths) == len(target_paths), 'different length img & mask'
 
     # last sort
     image_paths = sorted(image_paths)
     target_paths = sorted(target_paths)
 
-    assert len(image_paths) == len(target_paths), 'different length img & mask'
-
-    # random_seed = 10
-
     len_data = len(image_paths)
     indices_image = list(range(len_data))
 
-    # np.random.seed(random_seed)
+
     np.random.shuffle(indices_image)
 
     image_paths = np.array(image_paths)
@@ -437,7 +273,11 @@ def make_dataset(server, dataset, train_size):
     test_mask_paths = target_paths[test_image_no]
 
     print('end load data')
-    return [train_image_paths, train_mask_paths], [test_image_paths, test_mask_paths]
+
+    if train_size ==1:
+        return train_image_paths, train_mask_paths
+    else :
+        return train_image_paths, train_mask_paths, test_image_paths, test_mask_paths
 
 
 
