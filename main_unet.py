@@ -193,10 +193,8 @@ def main():
 
         print("train end")
     except RuntimeError as e:
-        print('#jm_private',
-                       '-----------------------------------  error train : send to message JM '
-                       '& Please send a kakao talk ----------------------------------------- \n error message : {}'
-                           .format(e))
+        print('error message : {}' .format(e))
+
 
         import ipdb
         ipdb.set_trace()
