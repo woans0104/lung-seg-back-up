@@ -12,6 +12,8 @@ import ipdb
 import numpy as np
 import matplotlib.pyplot as plt
 
+import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
 import torch.utils.data as data
 import torch.backends.cudnn as cudnn
@@ -22,8 +24,7 @@ import dataloader as loader
 from utils import *
 import torch.optim as optim
 from predict import main_test
-from model import *
-from losses import DiceLoss,ClDice
+from adamp import AdamP
 
 
 parser = argparse.ArgumentParser()
@@ -46,8 +47,14 @@ parser.add_argument('--aug-range',default='aug6', type=str)
 # arguments for model
 parser.add_argument('--arch', default='unet', type=str)
 
+parser.add_argument('--nomalize-con', default='gn', type=str)
+parser.add_argument('--affine', default=True,type=str2bool)
+parser.add_argument('--group-channel', default=1, type=int)
+parser.add_argument('--weight-std', default=False,type=str2bool)
+
+
 # arguments for optim & loss
-parser.add_argument('--optim',default='sgd',choices=['adam','sgd'],type=str)
+parser.add_argument('--optim',default='sgd',choices=['adam','adamp','sgd'],type=str)
 parser.add_argument('--weight-decay',default=5e-4,type=float)
 
 parser.add_argument('--loss-function',default='bce',type=str)
@@ -73,7 +80,7 @@ def main():
         work_dir = os.path.join('/data1/JM/lung_segmentation', args.exp)
         print(work_dir)
     elif args.server =='server_B':
-        work_dir = os.path.join('/data1/workspace/JM_gen/lung_seg', args.exp)
+        work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
         print(work_dir)
 
     if not os.path.exists(work_dir):
@@ -89,14 +96,17 @@ def main():
 
 
     # 1.load_dataset
-    train_loader_source,test_loader_source = loader.get_loader(server=args.server,dataset=source_dataset,train_size=1,
-                                            aug_mode=args.aug_mode,aug_range=args.aug_range,
-                                            batch_size=args.batch_size,work_dir=work_dir)
+    train_loader_source,test_loader_source = loader.get_loader(server=args.server,dataset=source_dataset,
+                                                               train_size=args.train_size,aug_mode=args.aug_mode,
+                                                               aug_range=args.aug_range,batch_size=args.batch_size,
+                                                               work_dir=work_dir)
 
     train_loader_target1, _ = loader.get_loader(server=args.server, dataset=target_dataset1, train_size=1,
-                                            aug_mode=False, aug_range=args.aug_range,batch_size=1, work_dir=work_dir)
+                                                aug_mode=False, aug_range=args.aug_range,batch_size=1, work_dir=work_dir)
+
     train_loader_target2, _ = loader.get_loader(server=args.server, dataset=target_dataset2, train_size=1,
-                                            aug_mode=False, aug_range=args.aug_range,batch_size=1, work_dir=work_dir)
+                                                aug_mode=False, aug_range=args.aug_range,batch_size=1, work_dir=work_dir)
+
 
 
     test_data_li = [test_loader_source, train_loader_target1, train_loader_target2]
@@ -108,17 +118,32 @@ def main():
 
 
     # 2.model_select
-    model_seg = utils.select_model(args.arch)
+    #model_seg = select_model(args.arch)
+
+    if args.arch == 'unet' :
+        model_seg = Unet2D(in_shape=(1, 256, 256))
+    elif args.arch == 'unet_norm':
+        model_seg = Unet2D_norm(in_shape=(1, 256, 256),nomalize_con=args.nomalize_con,affine=args.affine,
+                              group_channel=args.group_channel,weight_std=args.weight_std)
+
+    else:
+        raise ValueError('Not supported network.')
+
+    model_seg = model_seg.cuda()
+
+
 
 
     # 3.gpu select
-    model_seg = nn.DataParallel(model_seg).cuda()
+    model_seg = nn.DataParallel(model_seg)
     cudnn.benchmark = True
 
     # 4.optim
 
     if args.optim == 'adam':
         optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    elif args.optim == 'adamp':
+        optimizer_seg = AdamP(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     elif args.optim == 'sgd':
         optimizer_seg = torch.optim.SGD(model_seg.parameters(), lr=args.lr,
                                         momentum=0.9,weight_decay=args.weight_decay)
@@ -130,7 +155,8 @@ def main():
 
 
     # 5.loss
-    criterion = utils.select_loss(args.loss_function)
+    criterion = select_loss(args.loss_function)
+    criterion = criterion.cuda()
 
 
 
@@ -140,7 +166,7 @@ def main():
 
     # train
 
-    utils.send_slack_message('#jm_private', '{} : starting_training'.format(args.exp))
+    #utils.send_slack_message('#jm_private', '{} : starting_training'.format(args.exp))
     best_iou = 0
     try:
         if args.train_mode:
@@ -162,12 +188,12 @@ def main():
                 best_iou = max(iou, best_iou)
                 save_checkpoint({'epoch': epoch + 1,
                                  'state_dict': model_seg.state_dict(),
-                                 'optimizer': gen_optimizer.state_dict()},
+                                 'optimizer': optimizer_seg.state_dict()},
                                 is_best,work_dir,filename='checkpoint.pth')
 
         print("train end")
     except RuntimeError as e:
-        send_slack_message('#jm_private',
+        print('#jm_private',
                        '-----------------------------------  error train : send to message JM '
                        '& Please send a kakao talk ----------------------------------------- \n error message : {}'
                            .format(e))
@@ -176,10 +202,10 @@ def main():
         ipdb.set_trace()
 
 
-    utils.draw_curve(work_dir, trn_logger, val_logger)
-    utils.send_slack_message('#jm_private', '{} : end_training'.format(args.exp))
+    draw_curve(work_dir, trn_logger, val_logger)
+    #utils.send_slack_message('#jm_private', '{} : end_training'.format(args.exp))
     # here is load model for last pth
-    utils.check_best_pth(work_dir)
+    check_best_pth(work_dir)
 
     # validation
     if args.test_mode:
@@ -207,11 +233,10 @@ def train(model, train_loader, epoch, criterion, optimizer, logger, sublogger):
         input, target = input.cuda(), target.cuda()
 
 
-        output = model(input)
+        output, _ = model(input)
         loss = criterion(output, target)
 
-
-        iou, dice = utils.performance(output, target,dist_con=False)
+        iou, dice = performance(output, target,dist_con=False)
         losses.update(loss.item(), input.size(0))
         ious.update(iou, input.size(0))
         dices.update(dice, input.size(0))
@@ -259,11 +284,11 @@ def validate(model, val_loader, epoch, criterion, logger):
             target = target.cuda()
 
 
-            output = model(input)
+            output, _ = model(input)
 
             loss = criterion(output, target)
 
-            iou, dice = utils.performance(output, target,dist_con=False)
+            iou, dice = performance(output, target,dist_con=False)
 
             losses.update(loss.item(), input.size(0))
             ious.update(iou, input.size(0))
