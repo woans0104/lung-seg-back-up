@@ -7,11 +7,14 @@ from skimage import io
 import matplotlib.pyplot as plt
 
 import torch
-
+import torch.nn as nn
 import shutil
 from collections import Iterable
 from slacker import Slacker
 import argparse
+
+from model import *
+from losses import DiceLoss,ClDice
 
 class AverageMeter(object):
 
@@ -261,27 +264,27 @@ def select_model(network,style='style1'):
     else:
         raise ValueError('Not supported network.')
 
-    model_name = str(my_net).split('(')[0]
 
-    return my_net, model_name
+
+    return my_net
 
 
 def select_loss(loss_function):
     if loss_function == 'bce':
-        criterion = nn.BCELoss().cuda()
+        criterion = nn.BCELoss()
     elif loss_function == 'bce_logit':
-        criterion = nn.BCEWithLogitsLoss().cuda()
+        criterion = nn.BCEWithLogitsLoss()
     elif loss_function == 'dice':
-        criterion = DiceLoss().cuda()
+        criterion = DiceLoss()
     elif loss_function == 'mse':
-        criterion = nn.MSELoss().cuda()
+        criterion = nn.MSELoss()
     elif loss_function == 'l1':
-        criterion = nn.L1Loss().cuda()
+        criterion = nn.L1Loss()
     elif loss_function == 'kl' or loss_function == 'jsd':
-        criterion = nn.KLDivLoss().cuda()
+        criterion = nn.KLDivLoss()
     elif loss_function == 'Cldice':
-        bce = nn.BCELoss().cuda()
-        dice = DiceLoss().cuda()
+        bce = nn.BCELoss()
+        dice = DiceLoss()
         criterion = ClDice(bce,dice,alpha=1,beta=1)
     else:
         raise ValueError('Not supported loss.')
