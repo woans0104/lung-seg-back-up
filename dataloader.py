@@ -146,10 +146,12 @@ def dataset_condition(trainset_condition):
         'SH': ['JSRT', 'MC_modified']
     }
 
-    if train_dataset in dataset.keys():
-        print('train dataset : ', train_dataset)
-        print('test dataset1 : ', dataset[condition][0])
-        print('test dataset2 : ', dataset[condition][1])
+    if trainset_condition in dataset.keys():
+        print('*' * 50)
+        print('train dataset : ', trainset_condition)
+        print('test dataset1 : ', dataset[trainset_condition][0])
+        print('test dataset2 : ', dataset[trainset_condition][1])
+        print('*' * 50)
 
         train_datset = trainset_condition
         test_dataset1 = dataset[trainset_condition][0]
@@ -163,39 +165,52 @@ def dataset_condition(trainset_condition):
 
 
 
-def get_loader(server, dataset, train_size, arg_mode, batch_size, work_dir=None):
-    train_image_path, train_label_path, test_image_path, test_label_path = load_data_path(server, dataset,
-                                                                                                 train_size=train_size)
 
-    if train_size != 1:
-        np.save(os.path.join(work_dir, '{}_test_path.npy'.format(args.train_dataset)),
-                [test_image_path, test_label_path])  ########
+def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, work_dir=None):
 
     # transform
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize([0.5], [0.5])])
 
-    train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, arg_mode=arg_mode,
-                                        dataset=dataset)
-    train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-
-    test_dataset = CustomDataset(test_image_path, test_label_path, transform,
-                                        dataset=train_dataset)
-    test_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
 
     if train_size != 1:
+        train_image_path, train_label_path, test_image_path, test_label_path = load_data_path(server, dataset,
+                                                                                              train_size=train_size)
+
+        np.save(os.path.join(work_dir, '{}_test_path.npy'.format(dataset)),
+                [test_image_path, test_label_path])  ########
+
+
+
+        train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,aug_range=aug_range,
+                                            dataset=dataset)
+        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
+        test_dataset = Lung_Dataset(test_image_path, test_label_path, transform,dataset=dataset)
+
+        test_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
 
         return train_loader, test_loader
 
-    else:
-        return train_loader
+    else: # train_size == 1
+
+        train_image_path, train_label_path = load_data_path(server, dataset, train_size=train_size)
+
+        train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,
+                                     aug_range=aug_range,dataset=dataset)
+
+        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+
+
+        return train_loader , train_loader
+
+
+
 
 
 
 def load_data_path(server, dataset, train_size):
 
-    print('now dataset', dataset)
-    
     
     def read_data(data_folder):
 
@@ -212,6 +227,7 @@ def load_data_path(server, dataset, train_size):
         return data_paths
 
     def match_data_path(img_path, target_path):
+
         img_path = np.array(sorted(img_path))
         target_path = np.array(sorted(target_path))
 
@@ -221,19 +237,24 @@ def load_data_path(server, dataset, train_size):
             img_name = img_path[i].split('/')[-1].split('.')[0]
             imgName_li.append(img_name)
 
-        targetName_li = []
+        total_img_li = []
         for i in range(len(target_path)):
-            img_name = target_path[i].split('/')[-1].split('.')[0].split('_mask')[0]
-            targetName_li.append(img_name)
+            try:
+                img_name = target_path[i].split('/')[-1].split('.')[0].split('_mask')[0]
 
-        img_path = img_path[imgName_li == targetName_li]
+                idx = np.where(imgName_li == np.array(img_name))[0][0]
 
-        return img_path, target_path
+                total_img_li.append(img_path[idx])
+
+            except IndexError:
+                continue
+
+        return total_img_li, target_path
 
 
     dataset = dataset + '_dataset'
-    
-    
+
+
     if server == 'server_A':
         image_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/label/*".format(dataset)))
@@ -248,7 +269,7 @@ def load_data_path(server, dataset, train_size):
     if len(image_paths) != len(target_paths):
         image_paths, target_paths = match_data_path(image_paths, target_paths)
 
-    assert len(image_paths) == len(target_paths), 'different length img & mask'
+    assert len(image_paths) == len(target_paths), print(target_paths)#'different length img & mask'
 
     # last sort
     image_paths = sorted(image_paths)
@@ -272,7 +293,6 @@ def load_data_path(server, dataset, train_size):
     test_image_paths = image_paths[test_image_no]
     test_mask_paths = target_paths[test_image_no]
 
-    print('end load data')
 
     if train_size ==1:
         return train_image_paths, train_mask_paths
