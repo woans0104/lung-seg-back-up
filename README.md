@@ -41,14 +41,12 @@
 python3 main.py  \
 --exp exp_test \
 --arch unet \
---train-dataset MC_modified \
---test-dataset1 JSRT \
---test-dataset2 SH \
+--source-dataset JSRT \
 --batch-size 8 \
 --lr-schedule 100 120 \
 --arg-mode True \
 --arg-thres 0.5\
---initial-lr 0.1\
+--lr 0.1\
 --train-size 0.8
 ```
 | Args 	| Options 	| Description 	|
@@ -59,7 +57,7 @@ python3 main.py  \
 | source-dataset 	|  [str] 	| train-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
 | batch_size 	| [int] 	| number of samples per batch. default : 8|
 | lr-schedule | [int] 	| number of epochs for training. default : 100 120 |
-| initial-lr 	| [float] 	| learning rate. defalut : 0.1	|
+| lr 	| [float] 	| learning rate. defalut : 0.1	|
 | arg-mode | [str] | augmentation mode :  defalut : False|
 | arg-thres | [float] | augmentation threshold. default : 0.5|
 | train-size| [float] | train dataset size. default : 0.8 |
