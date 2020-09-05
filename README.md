@@ -36,7 +36,7 @@
 - opencv
 
 ### Segmentation - Train Examples
-* python3 main.py  --exp exp_test --arch unet --train-dataset MC_modified --test-dataset1 JSRT --test-dataset2 SH --batch-size 8 --lr-schedule 100 120 --arg-mode True --arg-thres 0.5 --initial-lr 0.1 --train-size 0.8 
+* python3 main_unet.py  --exp exp_test --arch unet --source-dataset MC_modified --optim adam --weight-decay 5e-4 --loss-function bce_logit --batch-size 8  --lr 0.1 --lr-schedule 100 120 --aug-mode True --aug-thres 0.5 --train-size 0.7 
 
 
 ```
@@ -53,15 +53,19 @@ python3 main.py  \
 ```
 | Args 	| Options 	| Description 	|
 |---------|--------|----------------------------------------------------|
+| server |  [str] 	| Server settings. 	|
 | work-dir |  [str] 	| Working folder. 	|
 | exp 	| [str] 	| ./test/	|
 | arch 	|  [str] 	| model architecture. |
 | source-dataset 	|  [str] 	| train-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
 | batch_size 	| [int] 	| number of samples per batch. default : 8|
+| arch 	|  [str] 	| model architecture. |
+| optim 	|  [str] 	| optimizer. choices=['adam','adamp','sgd']. default : sgd |
+| loss-function 	|  [str] 	| loss-function. |
 | lr-schedule | [int] 	| number of epochs for training. default : 100 120 |
 | lr 	| [float] 	| learning rate. defalut : 0.1	|
-| arg-mode | [str] | augmentation mode :  defalut : False|
-| arg-range | [float] | augmentation range. default : aug6|
+| aug-mode | [str] | augmentation mode :  defalut : False|
+| aug-range | [float] | augmentation range. default : aug6|
 | train-size| [float] | train dataset size. default : 0.7 |
 
 
