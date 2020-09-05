@@ -11,6 +11,8 @@ import ipdb
 import numpy as np
 import matplotlib.pyplot as plt
 
+import torch
+import torch.nn as nn
 import torch.utils.data as data
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
@@ -23,7 +25,7 @@ from utils import *
 from predict import main_test
 from model import *
 from losses import DiceLoss,ClDice
-
+from adamp import AdamP
 
 
 parser = argparse.ArgumentParser()
@@ -51,11 +53,11 @@ parser.add_argument('--denoising',default=True,type=str2bool)
 parser.add_argument('--salt-prob', default=0.1, type=float)
 
 # arguments for optim & loss
-parser.add_argument('--optim',default='sgd',choices=['adam','sgd'],type=str)
+parser.add_argument('--optim',default='sgd',choices=['adam','adamp','sgd'],type=str)
 parser.add_argument('--weight-decay',default=5e-4,type=float)
 
-parser.add_argument('--seg-loss-function',default='bce',type=str)
-parser.add_argument('--ae-loss-function',default='bce',type=str)
+parser.add_argument('--seg-loss-function',default='bce_logit',type=str)
+parser.add_argument('--ae-loss-function',default='bce_logit',type=str)
 parser.add_argument('--embedding-loss-function',default='mse',type=str)
 
 parser.add_argument('--lr', default=0.1, type=float, help='initial-lr')
@@ -112,24 +114,28 @@ def main():
 
 
     # 2.model_select
-    model_seg, _ = utils.select_model(args.arch_seg)
-    model_ae, _ = utils.select_model(args.arch_ae)
+    model_seg  = Unet2D(in_shape=(1, 256, 256))
+    model_seg=model_seg.cuda()
+    model_ae = ae_lung(in_shape=(1, 256, 256))
+    model_ae = model_ae.cuda()
 
+    cudnn.benchmark = True
 
     # 3.gpu select
-    model_seg = nn.DataParallel(model_seg).cuda()
-    model_ae = nn.DataParallel(model_ae).cuda()
-    cudnn.benchmark = True
+    model_seg = nn.DataParallel(model_seg)
+    model_ae = nn.DataParallel(model_ae)
 
 
     # 4.optim
     if args.optim == 'adam':
-        optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.initial_lr, weight_decay=args.weight_decay)
-        optimizer_ae = torch.optim.Adam(model_ae.parameters(), lr=args.initial_lr, weight_decay=args.weight_decay)
-
+        optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_ae = torch.optim.Adam(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    elif args.optim == 'adamp':
+        optimizer_seg = AdamP(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_ae = AdamP(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     elif args.optim == 'sgd':
-        optimizer_seg = torch.optim.SGD(model_seg.parameters(), lr=args.initial_lr, weight_decay=args.weight_decay)
-        optimizer_ae = torch.optim.SGD(model_ae.parameters(), lr=args.initial_lr, weight_decay=args.weight_decay)
+        optimizer_seg = torch.optim.SGD(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_ae = torch.optim.SGD(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
 
@@ -142,28 +148,28 @@ def main():
 
     # 5.loss
 
-    criterion_seg = utils.select_loss(args.seg_loss_function)
-    criterion_ae = utils.select_loss(args.ae_loss_function)
-    criterion_embedding = utils.select_loss(args.embedding_loss_function)
+    criterion_seg = select_loss(args.seg_loss_function)
+    criterion_ae = select_loss(args.ae_loss_function)
+    criterion_embedding = select_loss(args.embedding_loss_function)
 
 
 #####################################################################################
 
     # train
 
-    send_slack_message('#jm_private', '{} : starting_training'.format(args.exp))
+
     best_iou = 0
     try:
         if args.train_mode:
             for epoch in range(lr_schedule[-1]):
 
 
-                train(model_seg =model_seg, model_ae = model_ae,train_loader=train_loader,epoch= epoch, 
+                train(model_seg =model_seg, model_ae = model_ae,train_loader=train_loader_source,epoch= epoch,
                       criterion_seg=criterion_seg,criterion_ae=criterion_ae,criterion_embedding=criterion_embedding,
                       optimizer_seg=optimizer_seg, optimizer_ae=optimizer_ae,
                       logger=trn_logger, sublogger=trn_raw_logger)
 
-                iou = validate(model=model_seg, val_loader= val_loader, epoch= epoch, criterion = criterion_seg,
+                iou = validate(model=model_seg, val_loader= test_loader_source, epoch= epoch, criterion = criterion_seg,
                               logger= val_logger)
                 print('validation result **************************************************************')
 
@@ -177,15 +183,15 @@ def main():
                     is_best = iou > best_iou
                 best_iou = max(iou, best_iou)
                 save_checkpoint({'epoch': epoch + 1,
-                                 'state_dict': my_net.state_dict(),
-                                 'optimizer': gen_optimizer.state_dict()},
+                                 'state_dict': model_seg.state_dict(),
+                                 'optimizer': criterion_seg.state_dict()},
                                 is_best, work_dir, filename='checkpoint.pth')
 
 
 
         print("train end")
     except RuntimeError as e:
-        send_slack_message( '#jm_private',
+        print( '#jm_private',
                        '-----------------------------------  error train : send to message JM  '
                        '& Please send a kakao talk ----------------------------------------- '
                        '\n error message : {}'.format(e))
@@ -194,10 +200,10 @@ def main():
         ipdb.set_trace()
 
     draw_curve(work_dir, trn_logger, val_logger)
-    send_slack_message('#jm_private', '{} : end_training'.format(args.exp))
+
     
     # here is load model for last pth
-    utils.check_best_pth(work_dir)
+    check_best_pth(work_dir)
 
     # validation
     if args.test_mode:
@@ -236,7 +242,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
 
         # autoencoder
         if args.denoising == True:
-            noisy_batch_input=utils.make_noise_input(target, args.salt_prob)
+            noisy_batch_input=make_noise_input(target, args.salt_prob)
             output_ae, bottom_ae = model_ae(noisy_batch_input)
 
         else:
@@ -276,7 +282,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
         print('Total_loss : ', total_loss)
 
 
-        iou, dice = utils.performance(output_seg, target,dist_con=False)
+        iou, dice = performance(output_seg, target,dist_con=False)
         losses.update(total_loss.item(), input.size(0))
         embedding_losses.update(loss_embedding.item(), input.size(0))
         ious.update(iou, input.size(0))
@@ -353,7 +359,7 @@ def validate(model, val_loader, epoch, criterion, logger):
             loss = criterion(output, target)
 
 
-            iou, dice = utils.performance(output_seg, target, dist_con=False)
+            iou, dice = performance(output, target, dist_con=False)
 
             losses.update(loss.item(), input.size(0))
             ious.update(iou, input.size(0))
@@ -370,6 +376,26 @@ def validate(model, val_loader, epoch, criterion, logger):
     return ious.avg
 
 
+def select_loss(loss_function):
+    if loss_function == 'bce':
+        criterion = nn.BCELoss()
+    elif loss_function == 'bce_logit':
+        criterion = nn.BCEWithLogitsLoss()
+    elif loss_function == 'dice':
+        criterion = DiceLoss()
+    elif loss_function == 'mse':
+        criterion = nn.MSELoss()
+    elif loss_function == 'l1':
+        criterion = nn.L1Loss()
+    elif loss_function == 'kl' or loss_function == 'jsd':
+        criterion = nn.KLDivLoss()
+    elif loss_function == 'Cldice':
+        bce = nn.BCELoss().cuda()
+        dice = DiceLoss().cuda()
+        criterion = ClDice(bce,dice,alpha=1,beta=1)
+    else:
+        raise ValueError('Not supported loss.')
+    return criterion.cuda()
 
 
 

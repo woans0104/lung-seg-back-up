@@ -65,6 +65,14 @@ class Lung_Dataset(Dataset):
                     contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
                     image = transforms.functional.adjust_contrast(image, contrast_factor)
 
+        elif aug_range == 'aug7':
+
+            brightness_factor = random.uniform(0.4, 1.4)
+            image = transforms.functional.adjust_brightness(image, brightness_factor)
+
+            contrast_factor = random.uniform(0.4, 1.4)
+            image = transforms.functional.adjust_contrast(image, contrast_factor)
+
 
         elif aug_range == 'aug9':
 

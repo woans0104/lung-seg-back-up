@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import shutil
 from collections import Iterable
-from slacker import Slacker
 import argparse
 
 from model import *
@@ -190,12 +189,12 @@ def salt_and_pepper(img, prob):
     return noisy
 
 
-
-def send_slack_message(channel, messge,
-                       token='str'):
-    token = token
-    slack = Slacker(token)
-    slack.chat.post_message(channel, messge)
+#
+# def send_slack_message(channel, messge,
+#                        token='str'):
+#     token = token
+#     slack = Slacker(token)
+#     slack.chat.post_message(channel, messge)
 
 
 
@@ -269,26 +268,26 @@ def select_model(network,style='style1'):
     return my_net
 
 
-def select_loss(loss_function):
-    if loss_function == 'bce':
-        criterion = nn.BCELoss()
-    elif loss_function == 'bce_logit':
-        criterion = nn.BCEWithLogitsLoss()
-    elif loss_function == 'dice':
-        criterion = DiceLoss()
-    elif loss_function == 'mse':
-        criterion = nn.MSELoss()
-    elif loss_function == 'l1':
-        criterion = nn.L1Loss()
-    elif loss_function == 'kl' or loss_function == 'jsd':
-        criterion = nn.KLDivLoss()
-    elif loss_function == 'Cldice':
-        bce = nn.BCELoss()
-        dice = DiceLoss()
-        criterion = ClDice(bce,dice,alpha=1,beta=1)
-    else:
-        raise ValueError('Not supported loss.')
-    return criterion
+# def select_loss(loss_function):
+#     if loss_function == 'bce':
+#         criterion = nn.BCELoss()
+#     elif loss_function == 'bce_logit':
+#         criterion = nn.BCEWithLogitsLoss()
+#     elif loss_function == 'dice':
+#         criterion = DiceLoss()
+#     elif loss_function == 'mse':
+#         criterion = nn.MSELoss()
+#     elif loss_function == 'l1':
+#         criterion = nn.L1Loss()
+#     elif loss_function == 'kl' or loss_function == 'jsd':
+#         criterion = nn.KLDivLoss()
+#     elif loss_function == 'Cldice':
+#         bce = nn.BCELoss()
+#         dice = DiceLoss()
+#         criterion = ClDice(bce,dice,alpha=1,beta=1)
+#     else:
+#         raise ValueError('Not supported loss.')
+#     return criterion
 
 
 

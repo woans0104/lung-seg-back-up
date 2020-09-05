@@ -454,8 +454,8 @@ class Conv_nomarlize_Relu(nn.Module):
         elif self.nomalize_con == 'in':
             self.nomalize = nn.InstanceNorm2d(out_channels,affine=affine)
         else:
-            print('bnbnbn')
-            self.nomalize = nn.BatchNorm2d(out_channels)
+           #self.nomalize_con == 'bn':
+            self.nomalize = nn.BatchNorm2d(out_channels,affine=affine)
 
         self.relu = nn.ReLU()
 
