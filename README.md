@@ -31,7 +31,9 @@
 - NumPy
 - pandas
 - matplotlib
-
+- medpy
+- AdamP
+- opencv
 
 ### Segmentation - Train Examples
 * python3 main.py  --exp exp_test --arch unet --train-dataset MC_modified --test-dataset1 JSRT --test-dataset2 SH --batch-size 8 --lr-schedule 100 120 --arg-mode True --arg-thres 0.5 --initial-lr 0.1 --train-size 0.8 
