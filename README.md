@@ -56,9 +56,7 @@ python3 main.py  \
 | work-dir |  [str] 	| Working folder. 	|
 | exp 	| [str] 	| ./test/	|
 | arch 	|  [str] 	| model architecture. |
-| train-dataset 	|  [str] 	| train-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
-| test-dataset1 	|  [str] 	| test-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
-| test-dataset2	  |  [str] 	| test-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
+| source-dataset 	|  [str] 	| train-dataset. help='JSRT_dataset,MC_dataset,SH_dataset'|
 | batch_size 	| [int] 	| number of samples per batch. default : 8|
 | lr-schedule | [int] 	| number of epochs for training. default : 100 120 |
 | initial-lr 	| [float] 	| learning rate. defalut : 0.1	|
