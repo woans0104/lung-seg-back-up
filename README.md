@@ -41,6 +41,7 @@
 * python3 main_proposed_embedding.py  --server server_A --exp exp_test --source-dataset MC_modified --seg-loss-function Cldice --ae-loss-function Cldice --embedding-loss mse --embedding-alpha 1 --optim adam --weight-decay 5e-4 --batch-size 8 --lr 0.1 --lr-schedule 100 120 --aug-mode True --aug-range aug6 --train-size 0.7 
 
 
+
 | Args 	| Options 	| Description 	|
 |---------|--------|----------------------------------------------------|
 | server |  [str] 	| Server settings. 	|
