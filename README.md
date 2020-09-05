@@ -59,8 +59,8 @@ python3 main.py  \
 | lr-schedule | [int] 	| number of epochs for training. default : 100 120 |
 | lr 	| [float] 	| learning rate. defalut : 0.1	|
 | arg-mode | [str] | augmentation mode :  defalut : False|
-| arg-thres | [float] | augmentation threshold. default : 0.5|
-| train-size| [float] | train dataset size. default : 0.8 |
+| arg-range | [float] | augmentation range. default : aug6|
+| train-size| [float] | train dataset size. default : 0.7 |
 
 
 
