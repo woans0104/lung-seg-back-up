@@ -22,7 +22,7 @@ import dataloader as loader
 
 def main_test(model=None, args=None, test_loader=None):
     if args.server == 'server_A':
-        work_dir = os.path.join('/data1/JM/lung_segmentation', args.exp)
+        work_dir = os.path.join('/data1/JM/lung-seg-back-up', args.exp)
         print(work_dir)
     elif args.server == 'server_B':
         work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
@@ -311,7 +311,6 @@ def save_fig(org_input, org_target, prediction,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--server', default='server_B')
-    parser.add_argument('--work-dir', default='/data1/JM/lung_segmentation')
     parser.add_argument('--exp', type=str)
     parser.add_argument('--file-name', default='result_all_acd', type=str)
 

@@ -155,8 +155,21 @@ def main():
 
 
     # 5.loss
-    criterion = select_loss(args.loss_function)
+
+
+    if args.loss_function == 'bce':
+        criterion = nn.BCELoss()
+    elif args.loss_function == 'bce_logit':
+        criterion = nn.BCEWithLogitsLoss()
+    elif args.loss_function == 'dice':
+        criterion = DiceLoss()
+    elif args.loss_function == 'Cldice':
+        bce = nn.BCEWithLogitsLoss().cuda()
+        dice = DiceLoss().cuda()
+        criterion = ClDice(bce, dice, alpha=1, beta=1)
+
     criterion = criterion.cuda()
+
 
 
 

@@ -10,7 +10,7 @@ import torch.utils.data as data
 from torch.utils.data.dataset import Dataset
 
 import cv2
-from PIL import Image
+
 
 
 
@@ -262,14 +262,14 @@ def load_data_path(server, dataset, train_size):
 
     dataset = dataset + '_dataset'
 
-
+    #####################################################################################################################
     if server == 'server_A':
         image_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/label/*".format(dataset)))
     elif server == 'server_B':
         image_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/label/*".format(dataset)))
-
+    #####################################################################################################################
 
     image_paths =read_data(image_folder)
     target_paths = read_data(target_folder)
