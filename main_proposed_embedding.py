@@ -75,15 +75,13 @@ args = parser.parse_args()
 
 
 def main():
-
-#####################################################################################################################
     if args.server == 'server_A':
-        work_dir = os.path.join('/data1/JM/lung-seg-back-up', args.exp)
+        work_dir = os.path.join('/data1/JM/lung_segmentation', args.exp)
         print(work_dir)
     elif args.server == 'server_B':
-        work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
+        work_dir = os.path.join('/data1/workspace/JM_gen/lung_seg', args.exp)
         print(work_dir)
-#####################################################################################################################
+
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
@@ -392,7 +390,7 @@ def select_loss(loss_function):
     elif loss_function == 'kl' or loss_function == 'jsd':
         criterion = nn.KLDivLoss()
     elif loss_function == 'Cldice':
-        bce = nn.BCEWithLogitsLoss().cuda()
+        bce = nn.BCELoss().cuda()
         dice = DiceLoss().cuda()
         criterion = ClDice(bce,dice,alpha=1,beta=1)
     else:
