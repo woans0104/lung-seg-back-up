@@ -17,7 +17,8 @@ import cv2
 
 class Lung_Dataset(Dataset):
 
-    def __init__(self, image_paths, target_paths, transform, aug_mode=False,aug_range='aug6',dataset='mc'):
+    def __init__(self, image_paths, target_paths, transform,
+                 aug_mode=False,aug_range='aug6',dataset='mc'):
 
 
         self.image_paths = image_paths
@@ -43,52 +44,63 @@ class Lung_Dataset(Dataset):
             if random_factor1 > 0.5:
 
                 # brightness
-                brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                image = transforms.functional.adjust_brightness(image, brightness_factor)
+                b_factor = np.round((random.uniform(0.3, 1.1)), 1)
+                image = transforms.functional.adjust_brightness(image,
+                                                                b_factor)
 
-                if brightness_factor > 0.8:
+                if b_factor > 0.8:
                     # contrast
-                    contrast_factor = np.round((random.uniform(0.8, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
+                    c_factor = np.round((random.uniform(0.8, 1.1)), 1)
+                    image = transforms.functional.adjust_contrast(image,
+                                                                  c_factor)
                 else:
                     # contrast
-                    contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
+                    c_factor = np.round((random.uniform(0.3, 1.1)), 1)
+                    image = transforms.functional.adjust_contrast(image,
+                                                                  c_factor)
 
             else:
 
                 if random_factor2 > 0.5:
-                    brightness_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_brightness(image, brightness_factor)
+                    b_factor = np.round((random.uniform(0.3, 1.1)), 1)
+                    image = transforms.functional.adjust_brightness(image,
+                                                                    b_factor)
 
                 else:
-                    contrast_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image, contrast_factor)
+                    c_factor = np.round((random.uniform(0.3, 1.1)), 1)
+                    image = transforms.functional.adjust_contrast(image,
+                                                                  c_factor)
 
         elif aug_range == 'aug7':
 
-            brightness_factor = random.uniform(0.4, 1.4)
-            image = transforms.functional.adjust_brightness(image, brightness_factor)
+            b_factor = random.uniform(0.4, 1.4)
+            image = transforms.functional.adjust_brightness(image,
+                                                            b_factor)
 
-            contrast_factor = random.uniform(0.4, 1.4)
-            image = transforms.functional.adjust_contrast(image, contrast_factor)
+            c_factor = random.uniform(0.4, 1.4)
+            image = transforms.functional.adjust_contrast(image,
+                                                          c_factor)
 
 
         elif aug_range == 'aug9':
 
-            brightness_factor = random.uniform(0.8, 1.2)
-            image = transforms.functional.adjust_brightness(image, brightness_factor)
+            b_factor = random.uniform(0.8, 1.2)
+            image = transforms.functional.adjust_brightness(image,
+                                                            b_factor)
 
-            contrast_factor = random.uniform(0.8, 1.2)
-            image = transforms.functional.adjust_contrast(image, contrast_factor)
+            c_factor = random.uniform(0.8, 1.2)
+            image = transforms.functional.adjust_contrast(image,
+                                                          c_factor)
 
         elif aug_range == 'aug10':
 
-            brightness_factor = random.uniform(0.6, 1.2)
-            image = transforms.functional.adjust_brightness(image, brightness_factor)
+            b_factor = random.uniform(0.6, 1.2)
+            image = transforms.functional.adjust_brightness(image,
+                                                            b_factor)
 
-            contrast_factor = random.uniform(0.6, 1.2)
-            image = transforms.functional.adjust_contrast(image, contrast_factor)
+            c_factor = random.uniform(0.6, 1.2)
+            image = transforms.functional.adjust_contrast(image,
+                                                          c_factor)
 
 
         image = np.array(image)
@@ -114,8 +126,10 @@ class Lung_Dataset(Dataset):
 
 
         # cv2 resize
-        image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
-        mask = cv2.resize(mask, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, dsize=(256, 256),
+                           interpolation=cv2.INTER_NEAREST)
+        mask = cv2.resize(mask, dsize=(256, 256),
+                          interpolation=cv2.INTER_NEAREST)
 
         # aug
         if self.aug_mode:
@@ -174,7 +188,8 @@ def dataset_condition(trainset_condition):
 
 
 
-def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, work_dir=None):
+def get_loader(server, dataset, train_size, batch_size,
+               aug_mode, aug_range, work_dir=None):
 
     # transform
     transform = transforms.Compose([transforms.ToTensor(),
@@ -182,35 +197,64 @@ def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, wor
 
     print('train_size ::',train_size)
     if train_size != 1:
-        train_image_path, train_label_path, test_image_path, test_label_path = load_data_path(server, dataset,
-                                                                                              train_size=train_size)
-        
+        trn_image_path, trn_label_path, tst_image_path, tst_label_path \
+            = load_data_path(server, dataset,train_size=train_size)
+
+
         np.save(os.path.join(work_dir, '{}_test_path.npy'.format(dataset)),
-                [test_image_path, test_label_path])  ########
+                [tst_image_path, tst_label_path])  ########
 
 
 
-        train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,aug_range=aug_range,
-                                            dataset=dataset)
-        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+        trn_dataset = Lung_Dataset(trn_image_path,
+                                     trn_label_path,
+                                     transform,
+                                     aug_mode=aug_mode,
+                                     aug_range=aug_range,
+                                     dataset=dataset)
 
-        test_dataset = Lung_Dataset(test_image_path, test_label_path, transform,dataset=dataset)
 
-        test_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
+        trn_loader = data.DataLoader(trn_dataset,
+                                       batch_size=batch_size,
+                                       shuffle=True,
+                                       num_workers=4)
 
-        return train_loader, test_loader
+        tst_dataset = Lung_Dataset(tst_image_path,
+                                    tst_label_path,
+                                    transform,
+                                    dataset=dataset)
+
+        tst_loader = data.DataLoader(tst_dataset,
+                                      batch_size=1,
+                                      shuffle=True,
+                                      num_workers=0)
+
+        return trn_loader, tst_loader
 
     else: # train_size == 1
 
-        train_image_path, train_label_path = load_data_path(server, dataset, train_size=train_size)
-
-        train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,
-                                     aug_range=aug_range,dataset=dataset)
-
-        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+        trn_image_path, trn_label_path = load_data_path(server,
+                                                        dataset,
+                                                        train_size=train_size)
 
 
-        return train_loader , train_loader
+
+        trn_dataset = Lung_Dataset(trn_image_path,
+                                   trn_label_path,
+                                   transform,
+                                   aug_mode=aug_mode,
+                                   aug_range=aug_range,
+                                   dataset=dataset)
+
+
+
+        trn_loader = data.DataLoader(trn_dataset,
+                                       batch_size=batch_size,
+                                       shuffle=True,
+                                       num_workers=4)
+
+
+        return trn_loader , trn_loader
 
 
 
@@ -247,29 +291,42 @@ def load_data_path(server, dataset, train_size):
 
         total_img_li = []
         for i in range(len(target_path)):
-            try:
-                img_name = target_path[i].split('/')[-1].split('.')[0].split('_mask')[0]
+            
+            img_name \
+                = target_path[i].split('/')[-1].split('.')[0].split('_mask')[0]
 
-                idx = np.where(imgName_li == np.array(img_name))[0][0]
+            idx = np.where(imgName_li == np.array(img_name))[0][0]
 
-                total_img_li.append(img_path[idx])
+            total_img_li.append(img_path[idx])
 
-            except IndexError:
-                continue
 
         return total_img_li, target_path
 
 
     dataset = dataset + '_dataset'
 
-    #####################################################################################################################
+    ###########################################################################
     if server == 'server_A':
-        image_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/image/*".format(dataset)))
-        target_folder = sorted(glob.glob("/data2/woans0104/lung_segmentation_dataset/{}/label/*".format(dataset)))
+        image_folder = sorted(glob.glob("/data2/woans0104/"
+                                        "lung_segmentation_dataset/{}/image/*"
+                                        .format(dataset)))
+        target_folder = sorted(glob.glob("/data2/woans0104/"
+                                         "lung_segmentation_dataset/{}/label/*"
+                                         .format(dataset)))
     elif server == 'server_B':
-        image_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/image/*".format(dataset)))
-        target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/label/*".format(dataset)))
-    #####################################################################################################################
+        image_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/"
+                                        "{}/image/*".format(dataset)))
+        target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/"
+                                         "{}/label/*".format(dataset)))
+    elif server == 'server_D':
+        image_folder = sorted(glob.glob("/daintlab/data/"
+                                        "lung_segmentation_dataset/{}/image/*"
+                                        .format(dataset)))
+        target_folder = sorted(glob.glob("/daintlab/data/"
+                                         "lung_segmentation_dataset/{}/label/*"
+                                         .format(dataset)))
+
+    ###########################################################################
 
     image_paths =read_data(image_folder)
     target_paths = read_data(target_folder)
@@ -277,7 +334,8 @@ def load_data_path(server, dataset, train_size):
     if len(image_paths) != len(target_paths):
         image_paths, target_paths = match_data_path(image_paths, target_paths)
 
-    assert len(image_paths) == len(target_paths), print(target_paths)#'different length img & mask'
+    # 'different length img & mask'
+    assert len(image_paths) == len(target_paths), print(target_paths)
 
     # last sort
     image_paths = sorted(image_paths)
@@ -303,9 +361,11 @@ def load_data_path(server, dataset, train_size):
 
 
     if train_size ==1:
+
         return train_image_paths, train_mask_paths
     else :
-        return train_image_paths, train_mask_paths, test_image_paths, test_mask_paths
+        return train_image_paths, train_mask_paths, \
+               test_image_paths, test_mask_paths
 
 
 

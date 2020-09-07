@@ -34,7 +34,8 @@ parser.add_argument('--server', default='server_B')
 parser.add_argument('--exp',default="test4", type=str)
 parser.add_argument('--train-mode',default=True,type=str2bool)
 
-parser.add_argument('--source-dataset',default='JSRT',help='JSRT_dataset,MC_dataset,SH_dataset')
+parser.add_argument('--source-dataset',default='JSRT',
+                    help='JSRT_dataset,MC_dataset,SH_dataset')
 
 parser.add_argument('--train-size',default=0.7,type=float)
 parser.add_argument('--val-size',default=0,type=float)
@@ -53,8 +54,13 @@ parser.add_argument('--denoising',default=True,type=str2bool)
 parser.add_argument('--salt-prob', default=0.1, type=float)
 
 # arguments for optim & loss
-parser.add_argument('--optim',default='sgd',choices=['adam','adamp','sgd'],type=str)
+parser.add_argument('--optim',default='sgd',
+                    choices=['adam','adamp','sgd'],type=str)
 parser.add_argument('--weight-decay',default=5e-4,type=float)
+parser.add_argument('--eps',default=5e-4,type=float, help='adam eps')
+parser.add_argument('--adam-beta1',default=5e-4,type=float, help='adam beta')
+
+
 
 parser.add_argument('--seg-loss-function',default='bce_logit',type=str)
 parser.add_argument('--ae-loss-function',default='bce_logit',type=str)
@@ -76,14 +82,21 @@ args = parser.parse_args()
 
 def main():
 
-#####################################################################################################################
+##############################################################################
     if args.server == 'server_A':
         work_dir = os.path.join('/data1/JM/lung-seg-back-up', args.exp)
         print(work_dir)
     elif args.server == 'server_B':
-        work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
+        work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up',
+                                args.exp)
         print(work_dir)
-#####################################################################################################################
+    elif args.server == 'server_D':
+        work_dir = os.path.join('/daintlab/home/woans0104/workspace/'
+                                'lung-seg-back-up',args.exp)
+
+        print(work_dir)
+##############################################################################
+
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
@@ -93,26 +106,48 @@ def main():
         pickle.dump(args, f)
 
 
-    source_dataset, target_dataset1, target_dataset2 = loader.dataset_condition(args.source_dataset)
+    source_dataset, target_dataset1, target_dataset2 \
+        = loader.dataset_condition(args.source_dataset)
 
     # 1.load_dataset
-    train_loader_source, test_loader_source = loader.get_loader(server=args.server, dataset=source_dataset,
-                                                                train_size=args.train_size,
-                                                                aug_mode=args.aug_mode, aug_range=args.aug_range,
-                                                                batch_size=args.batch_size, work_dir=work_dir)
+    train_loader_source, test_loader_source \
+        = loader.get_loader(server=args.server,
+                            dataset=source_dataset,
+                            train_size=args.train_size,
+                            aug_mode=args.aug_mode,
+                            aug_range=args.aug_range,
+                            batch_size=args.batch_size,
+                            work_dir=work_dir)
 
-    train_loader_target1, _ = loader.get_loader(server=args.server, dataset=target_dataset1, train_size=1,
-                                                aug_mode=False, aug_range=args.aug_range, batch_size=1,
+
+
+    train_loader_target1, _ = loader.get_loader(server=args.server,
+                                                dataset=target_dataset1,
+                                                train_size=1,
+                                                aug_mode=False,
+                                                aug_range=args.aug_range,
+                                                batch_size=1,
                                                 work_dir=work_dir)
-    train_loader_target2, _ = loader.get_loader(server=args.server, dataset=target_dataset2, train_size=1,
-                                                aug_mode=False, aug_range=args.aug_range, batch_size=1,
+    train_loader_target2, _ = loader.get_loader(server=args.server,
+                                                dataset=target_dataset2,
+                                                train_size=1,
+                                                aug_mode=False,
+                                                aug_range=args.aug_range,
+                                                batch_size=1,
                                                 work_dir=work_dir)
 
-    test_data_li = [test_loader_source, train_loader_target1, train_loader_target2]
+
+    test_data_li = [test_loader_source,
+                    train_loader_target1,
+                    train_loader_target2]
+
 
     trn_logger = Logger(os.path.join(work_dir, 'train.log'))
     trn_raw_logger = Logger(os.path.join(work_dir, 'train_raw.log'))
     val_logger = Logger(os.path.join(work_dir, 'validation.log'))
+
+    trn_logger_ae = Logger(os.path.join(work_dir, 'ae_train.log'))
+    val_logger_ae = Logger(os.path.join(work_dir, 'ae_validation.log'))
 
 
     # 2.model_select
@@ -130,21 +165,50 @@ def main():
 
     # 4.optim
     if args.optim == 'adam':
-        optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        optimizer_ae = torch.optim.Adam(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_seg = torch.optim.Adam(model_seg.parameters(),
+                                         betas=(args.adam_beta1,0.999),
+                                         eps=args.eps,
+                                         lr=args.lr,
+                                         weight_decay=args.weight_decay)
+
+        optimizer_ae = torch.optim.Adam(model_ae.parameters(),
+                                        betas=(args.adam_beta1,0.999),
+                                        eps=args.eps,
+                                        lr=args.lr,
+                                        weight_decay=args.weight_decay)
     elif args.optim == 'adamp':
-        optimizer_seg = AdamP(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        optimizer_ae = AdamP(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_seg = AdamP(model_seg.parameters(),
+                              betas=(args.adam_beta1,0.999),
+                              eps=args.eps,
+                              lr=args.lr,
+                              weight_decay=args.weight_decay)
+
+        optimizer_ae = AdamP(model_ae.parameters(),
+                             betas=(args.adam_beta1,0.999),
+                             eps=args.eps,
+                             lr=args.lr,
+                             weight_decay=args.weight_decay)
+
     elif args.optim == 'sgd':
-        optimizer_seg = torch.optim.SGD(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        optimizer_ae = torch.optim.SGD(model_ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_seg = torch.optim.SGD(model_seg.parameters(),
+                                        lr=args.lr,
+                                        weight_decay=args.weight_decay)
+
+        optimizer_ae = torch.optim.SGD(model_ae.parameters(),
+                                       lr=args.lr,
+                                       weight_decay=args.weight_decay)
 
 
 
     # lr decay
     lr_schedule = args.lr_schedule
-    lr_scheduler_seg = optim.lr_scheduler.MultiStepLR(optimizer_seg,milestones=lr_schedule[:-1],gamma=0.1)
-    lr_scheduler_ae = optim.lr_scheduler.MultiStepLR(optimizer_ae,milestones=lr_schedule[:-1],gamma=0.1)
+    lr_scheduler_seg = optim.lr_scheduler.MultiStepLR(optimizer_seg,
+                                                      milestones=lr_schedule[:-1],
+                                                      gamma=0.1)
+
+    lr_scheduler_ae = optim.lr_scheduler.MultiStepLR(optimizer_ae,
+                                                     milestones=lr_schedule[:-1],
+                                                     gamma=0.1)
 
 
 
@@ -155,7 +219,7 @@ def main():
     criterion_embedding = select_loss(args.embedding_loss_function)
 
 
-#####################################################################################
+###############################################################################
 
     # train
 
@@ -166,14 +230,28 @@ def main():
             for epoch in range(lr_schedule[-1]):
 
 
-                train(model_seg =model_seg, model_ae = model_ae,train_loader=train_loader_source,epoch= epoch,
-                      criterion_seg=criterion_seg,criterion_ae=criterion_ae,criterion_embedding=criterion_embedding,
-                      optimizer_seg=optimizer_seg, optimizer_ae=optimizer_ae,
-                      logger=trn_logger, sublogger=trn_raw_logger)
+                train(model_seg =model_seg,
+                      model_ae = model_ae,
+                      train_loader=train_loader_source,
+                      epoch= epoch,
+                      criterion_seg=criterion_seg,
+                      criterion_ae=criterion_ae,
+                      criterion_embedding=criterion_embedding,
+                      optimizer_seg=optimizer_seg,
+                      optimizer_ae=optimizer_ae,
+                      logger=trn_logger,
+                      sublogger=trn_raw_logger,
+                      logger_ae=trn_logger_ae)
 
-                iou = validate(model=model_seg, val_loader= test_loader_source, epoch= epoch, criterion = criterion_seg,
-                              logger= val_logger)
-                print('validation result **************************************************************')
+                iou = validate(model_seg=model_seg,
+                               model_ae=model_ae,
+                               val_loader= test_loader_source,
+                               epoch= epoch,
+                               criterion = criterion_seg,
+                               logger= val_logger,
+                               logger_ae=val_logger_ae)
+
+                print('validation result ************************************')
 
 
                 lr_scheduler_seg.step()
@@ -194,14 +272,16 @@ def main():
         print("train end")
     except RuntimeError as e:
         print( '#jm_private',
-                       '-----------------------------------  error train : send to message JM  '
-                       '& Please send a kakao talk ----------------------------------------- '
+                       '-----------------------------------  error train : '
+                       'send to message JM  '
+                       '& Please send a kakao talk -------------------------- '
                        '\n error message : {}'.format(e))
 
         import ipdb
         ipdb.set_trace()
 
     draw_curve(work_dir, trn_logger, val_logger)
+    draw_curve(work_dir, trn_logger_ae, val_logger_ae, labelname = 'ae')
 
     
     # here is load model for last pth
@@ -216,8 +296,11 @@ def main():
 
 
 
-def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae, criterion_embedding, 
-          optimizer_seg, optimizer_ae, logger, sublogger):
+def train(model_seg, model_ae, train_loader, epoch,
+          criterion_seg, criterion_ae,
+          criterion_embedding, optimizer_seg, optimizer_ae,
+          logger, sublogger, logger_ae):
+
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -227,6 +310,9 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
     ious = AverageMeter()
     dices = AverageMeter()
 
+    losses_ae = AverageMeter()
+    ious_ae = AverageMeter()
+    dices_ae = AverageMeter()
 
     model_seg.train()
     model_ae.train()
@@ -258,8 +344,11 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
 
 
         # embedding loss
-        loss_embedding = embedding_loss(args.embedding_loss_function, criterion_embedding, 
-                                        bottom_seg, bottom_ae,args.arch_ae_detach)
+        loss_embedding = embedding_loss(args.embedding_loss_function,
+                                        criterion_embedding,
+                                        bottom_seg,
+                                        bottom_ae,args.arch_ae_detach)
+
         loss_embedding = float(args.embedding_alpha) * loss_embedding
 
 
@@ -284,11 +373,19 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
         print('Total_loss : ', total_loss)
 
 
+        #seg-log
         iou, dice = performance(output_seg, target,dist_con=False)
         losses.update(total_loss.item(), input.size(0))
         embedding_losses.update(loss_embedding.item(), input.size(0))
         ious.update(iou, input.size(0))
         dices.update(dice, input.size(0))
+
+        #ae-log
+
+        iou_ae, dice_ae = performance(output_ae, target, dist_con=False)
+        losses_ae.update(loss_ae.item(), input.size(0))
+        ious_ae.update(iou_ae, input.size(0))
+        dices_ae.update(dice_ae, input.size(0))
 
 
         optimizer_seg.zero_grad()
@@ -334,21 +431,31 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
                 print('acd,asd : None')
 
     if args.arch_seg == 'unet_recon':
-        logger.write([epoch, losses.avg, embedding_losses.avg,recon_losses.avg, ious.avg, dices.avg])
+        logger.write([epoch, losses.avg, embedding_losses.avg,recon_losses.avg,
+                      ious.avg, dices.avg])
+        logger_ae.write([epoch, losses_ae.avg, ious_ae.avg, dices_ae.avg])
     else:
-        logger.write([epoch, losses.avg,embedding_losses.avg, ious.avg, dices.avg])
+        logger.write([epoch, losses.avg,embedding_losses.avg,
+                      ious.avg, dices.avg])
+        logger_ae.write([epoch, losses_ae.avg, ious_ae.avg, dices_ae.avg])
 
 
 
-def validate(model, val_loader, epoch, criterion, logger):
+def validate(model_seg,model_ae, val_loader, epoch, criterion,
+             logger, logger_ae):
 
     batch_time = AverageMeter()
     losses = AverageMeter()
     ious = AverageMeter()
     dices = AverageMeter()
 
+    losses_ae = AverageMeter()
+    ious_ae = AverageMeter()
+    dices_ae = AverageMeter()
 
-    model.eval()
+
+    model_seg.eval()
+    model_ae.eval()
 
     with torch.no_grad():
         end = time.time()
@@ -357,25 +464,80 @@ def validate(model, val_loader, epoch, criterion, logger):
             input = input.cuda()
             target = target.cuda()
 
-            output, _ = model(input)
+            output, _ = model_seg(input)
             loss = criterion(output, target)
 
 
+            # seg-log
             iou, dice = performance(output, target, dist_con=False)
-
             losses.update(loss.item(), input.size(0))
             ious.update(iou, input.size(0))
             dices.update(dice, input.size(0))
 
+            # ae-log
+
+            output_ae, _ =model_ae(target)
+            loss_ae = criterion(output_ae, target)
+
+            iou_ae, dice_ae = performance(output_ae, target, dist_con=False)
+            losses_ae.update(loss_ae.item(), input.size(0))
+            ious_ae.update(iou_ae, input.size(0))
+            dices_ae.update(dice_ae, input.size(0))
+
+
             batch_time.update(time.time() - end)
             end = time.time()
 
-    print(' * IoU {ious.avg:.3f}({ious.std:.3f}) Dice {dices.avg:.3f}({dices.std:.3f})'.format(
-        ious=ious, dices=dices))
+    print(' * IoU {ious.avg:.3f}({ious.std:.3f}) '
+          'Dice {dices.avg:.3f}({dices.std:.3f})'
+          .format( ious=ious, dices=dices))
+
 
     logger.write([epoch, losses.avg, ious.avg, dices.avg])
+    logger_ae.write([epoch, losses_ae.avg, ious_ae.avg, dices_ae.avg])
 
     return ious.avg
+
+
+# def validate(model, val_loader, epoch, criterion, logger, logger_ae):
+#     batch_time = AverageMeter()
+#     losses = AverageMeter()
+#     ious = AverageMeter()
+#     dices = AverageMeter()
+#
+#     losses_ae = AverageMeter()
+#     ious_ae = AverageMeter()
+#     dices_ae = AverageMeter()
+#
+#     model.eval()
+#
+#     with torch.no_grad():
+#         end = time.time()
+#         for i, (input, target, ori_img, image_name) in enumerate(val_loader):
+#             input = input.cuda()
+#             target = target.cuda()
+#
+#             output, _ = model(input)
+#             loss = criterion(output, target)
+#
+#             # seg-log
+#             iou, dice = performance(output, target, dist_con=False)
+#             losses.update(loss.item(), input.size(0))
+#             ious.update(iou, input.size(0))
+#             dices.update(dice, input.size(0))
+#
+#             # ae-log
+#
+#             batch_time.update(time.time() - end)
+#             end = time.time()
+#
+#     print(' * IoU {ious.avg:.3f}({ious.std:.3f}) '
+#           'Dice {dices.avg:.3f}({dices.std:.3f})'.format(
+#         ious=ious, dices=dices))
+#
+#     logger.write([epoch, losses.avg, ious.avg, dices.avg])
+#
+#     return ious.avg
 
 
 def select_loss(loss_function):
