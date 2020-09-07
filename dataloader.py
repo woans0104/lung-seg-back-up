@@ -180,11 +180,11 @@ def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, wor
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize([0.5], [0.5])])
 
-
+    print('train_size ::',train_size)
     if train_size != 1:
         train_image_path, train_label_path, test_image_path, test_label_path = load_data_path(server, dataset,
                                                                                               train_size=train_size)
-
+        
         np.save(os.path.join(work_dir, '{}_test_path.npy'.format(dataset)),
                 [test_image_path, test_label_path])  ########
 

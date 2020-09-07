@@ -97,7 +97,7 @@ def main():
 
     # 1.load_dataset
     train_loader_source, test_loader_source = loader.get_loader(server=args.server, dataset=source_dataset,
-                                                                train_size=1,
+                                                                train_size=args.train_size,
                                                                 aug_mode=args.aug_mode, aug_range=args.aug_range,
                                                                 batch_size=args.batch_size, work_dir=work_dir)
 
