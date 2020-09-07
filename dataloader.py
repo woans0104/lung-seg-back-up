@@ -6,6 +6,7 @@ import numpy as np
 import ipdb
 
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as tF
 import torch.utils.data as data
 from torch.utils.data.dataset import Dataset
 
@@ -45,62 +46,60 @@ class Lung_Dataset(Dataset):
 
                 # brightness
                 b_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                image = transforms.functional.adjust_brightness(image,
-                                                                b_factor)
+                image = tF.adjust_brightness(image, b_factor)
+
 
                 if b_factor > 0.8:
                     # contrast
                     c_factor = np.round((random.uniform(0.8, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image,
-                                                                  c_factor)
+                    image = tF.adjust_contrast(image, c_factor)
                 else:
                     # contrast
                     c_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image,
-                                                                  c_factor)
+                    image = tF.adjust_contrast(image, c_factor)
 
             else:
 
                 if random_factor2 > 0.5:
                     b_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_brightness(image,
-                                                                    b_factor)
+                    image = tF.adjust_brightness(image,b_factor)
+
 
                 else:
                     c_factor = np.round((random.uniform(0.3, 1.1)), 1)
-                    image = transforms.functional.adjust_contrast(image,
-                                                                  c_factor)
+                    image = tF.adjust_contrast(image, c_factor)
+
 
         elif aug_range == 'aug7':
 
             b_factor = random.uniform(0.4, 1.4)
-            image = transforms.functional.adjust_brightness(image,
-                                                            b_factor)
+            image = tF.adjust_brightness(image, b_factor)
+
 
             c_factor = random.uniform(0.4, 1.4)
-            image = transforms.functional.adjust_contrast(image,
-                                                          c_factor)
+            image = tF.adjust_contrast(image, c_factor)
+
 
 
         elif aug_range == 'aug9':
 
             b_factor = random.uniform(0.8, 1.2)
-            image = transforms.functional.adjust_brightness(image,
-                                                            b_factor)
+            image = tF.adjust_brightness(image, b_factor)
+
 
             c_factor = random.uniform(0.8, 1.2)
-            image = transforms.functional.adjust_contrast(image,
-                                                          c_factor)
+            image = tF.adjust_contrast(image, c_factor)
+
 
         elif aug_range == 'aug10':
 
             b_factor = random.uniform(0.6, 1.2)
-            image = transforms.functional.adjust_brightness(image,
-                                                            b_factor)
+            image = tF.adjust_brightness(image, b_factor)
+
 
             c_factor = random.uniform(0.6, 1.2)
-            image = transforms.functional.adjust_contrast(image,
-                                                          c_factor)
+            image = tF.adjust_contrast(image, c_factor)
+                                                          
 
 
         image = np.array(image)
