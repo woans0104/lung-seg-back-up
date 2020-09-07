@@ -21,13 +21,14 @@ import dataloader as loader
 
 
 def main_test(model=None, args=None, test_loader=None):
+    #############################################################################
     if args.server == 'server_A':
         work_dir = os.path.join('/data1/JM/lung-seg-back-up', args.exp)
         print(work_dir)
     elif args.server == 'server_B':
         work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
         print(work_dir)
-
+    #############################################################################
     file_name = args.file_name
 
     result_dir = os.path.join(work_dir, file_name)
