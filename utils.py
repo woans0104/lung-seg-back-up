@@ -164,7 +164,8 @@ def make_noise_input(input,prob):
         else:
             noisy_batch_input = torch.cat([noisy_batch_input, nosiy_input], 0)
         #plt.imshow(nosiy_input.cpu().data.numpy().reshape(256,256), 'gray')
-        #plt.savefig(os.path.join(args.work_dir+'/'+args.exp,'denoising_input{}.png'.format(j)))
+        #plt.savefig(os.path.join(args.work_dir+'/'+args.exp,
+        #                         'denoising_input{}.png'.format(j)))
 
 
     return noisy_batch_input
@@ -250,7 +251,8 @@ def select_model(network,style='style1'):
 
     # model_new
 
-    if network == 'unet' or network == 'unet_recon' or network == 'ACNN' or network == 'SRM':
+    if network == 'unet' or network == 'unet_recon' \
+            or network == 'ACNN' or network == 'SRM':
         my_net = Unet2D(in_shape=(1, 256, 256))
     elif network =='ae_v2':
         my_net= ae_lung(in_shape=(1, 256, 256))
@@ -291,16 +293,20 @@ def select_model(network,style='style1'):
 
 
 
-def embedding_loss(embedding_loss,criterion_embedding, bottom_seg, bottom_ae, detach):
+def embedding_loss(embedding_loss,criterion_embedding,
+                   bottom_seg, bottom_ae, detach):
 
     if detach == True:
         bottom_ae = bottom_ae.detach()
 
     if embedding_loss == 'kl':
-        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae))
+        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg),
+                                             F.softmax(bottom_ae))
     elif embedding_loss == 'jsd':
-        loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae))) \
-                         + ( 0.5 * criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae)))
+        loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
+                                                    F.softmax(bottom_ae))) \
+                         + (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
+                                                       F.softmax(bottom_ae)))
                    
     elif embedding_loss == 'bce':
         bottom_seg = F.sigmoid(bottom_seg).cuda()
@@ -313,7 +319,9 @@ def embedding_loss(embedding_loss,criterion_embedding, bottom_seg, bottom_ae, de
     return loss_embedding
 
 
-def save_fig(exam_id, org_input, org_target, prediction, iou, result_dir, work_dir_name, slice_id):
+def save_fig(exam_id, org_input, org_target, prediction, iou,
+             result_dir, work_dir_name, slice_id):
+
     def _overlay_mask(img, mask, color='red'):
 
         # convert gray to color
@@ -350,10 +358,12 @@ def save_fig(exam_id, org_input, org_target, prediction, iou, result_dir, work_d
     pred_slice = prediction
 
     target_slice_pos_pixel = target_slice.sum()
-    target_slice_pos_pixel_rate = np.round(target_slice_pos_pixel / (512 * 512) * 100, 2)
+    target_slice_pos_pixel_rate = np.round(target_slice_pos_pixel
+                                           / (512 * 512) * 100, 2)
 
     pred_slice_pos_pixel = pred_slice.sum()
-    pred_slice_pos_pixel_rate = np.round(pred_slice_pos_pixel / (512 * 512) * 100, 2)
+    pred_slice_pos_pixel_rate = np.round(pred_slice_pos_pixel
+                                         / (512 * 512) * 100, 2)
 
     fig = plt.figure(figsize=(15, 5))
     ax = []
@@ -363,12 +373,16 @@ def save_fig(exam_id, org_input, org_target, prediction, iou, result_dir, work_d
     # show img with gt
     ax.append(fig.add_subplot(1, 3, 2))
     plt.imshow(_overlay_mask(input_slice, target_slice, color='red'))
-    ax[1].set_title('GT_pos_pixel = {0}({1}%)'.format(target_slice_pos_pixel, target_slice_pos_pixel_rate))
+    ax[1].set_title('GT_pos_pixel = {0}({1}%)'
+                    .format(target_slice_pos_pixel,
+                            target_slice_pos_pixel_rate))
     # show img with pred
     ax.append(fig.add_subplot(1, 3, 3))
     plt.imshow(_overlay_mask(input_slice, pred_slice, color='blue'))
-    ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%)'.format(iou, pred_slice_pos_pixel,
-                                                                          pred_slice_pos_pixel_rate))
+    ax[-1].set_title('IoU = {0:.4f} \n pred_pos_pixel = {1}({2}%)'
+                     .format(iou, pred_slice_pos_pixel,
+                             pred_slice_pos_pixel_rate))
+
 
     # remove axis
     for i in ax:
@@ -379,15 +393,17 @@ def save_fig(exam_id, org_input, org_target, prediction, iou, result_dir, work_d
     # ipdb.set_trace()
     if iou == -1:
         res_img_path = os.path.join(result_exam_dir,
-                                    '{slice_id}_{iou}.png'.format(slice_id=slice_id, iou='NA'))
+                                    '{slice_id}_{iou}.png'
+                                    .format(slice_id=slice_id, iou='NA'))
     else:
         res_img_path = os.path.join(result_exam_dir,
-                                    '{slice_id}_{iou:.4f}.png'.format(slice_id=slice_id, iou=iou))
+                                    '{slice_id}_{iou:.4f}.png'
+                                    .format(slice_id=slice_id, iou=iou))
     plt.savefig(res_img_path, bbox_inches='tight')
     plt.close()
 
 
-def draw_curve(work_dir, logger1, logger2, labelname=None):
+def draw_curve(work_dir, logger1, logger2, labelname='seg'):
     logger1 = logger1.read()
     logger2 = logger2.read()
 
@@ -396,11 +412,11 @@ def draw_curve(work_dir, logger1, logger2, labelname=None):
         epoch, trn_loss2, iou2 = zip(*logger2)
 
     elif len(logger1[0]) == 5:
-        epoch, trn_loss1, embedding_loss1, iou1, dice1 = zip(*logger1)
+        epoch, trn_loss1, embedd_loss1, iou1, dice1 = zip(*logger1)
         epoch, trn_loss2, iou2, dice2 = zip(*logger2)
 
     elif len(logger1[0]) == 6:
-        epoch, trn_loss1, embedding_loss1, recon_losses, iou1, dice1 = zip(*logger1)
+        epoch, trn_loss1, embedd_loss1, recon_loss, iou1, dice1 = zip(*logger1)
         epoch, trn_loss2, iou2, dice2, acd2, asd2 = zip(*logger2)
 
 
@@ -412,24 +428,28 @@ def draw_curve(work_dir, logger1, logger2, labelname=None):
     plt.plot(epoch, trn_loss1, '-b', label='train_total_loss')
     plt.plot(epoch, trn_loss2, '-r', label='val_loss')
     if len(logger1[0]) == 5:
-        plt.plot(epoch, embedding_loss1, '-g', label='train_embedding_loss')
+        plt.plot(epoch, embedd_loss1, '-g', label='train_embedding_loss')
     elif len(logger1[0]) == 6:
-        plt.plot(epoch, embedding_loss1, '-g', label='train_embedding_loss')
-        plt.plot(epoch, recon_losses, '-y', label='train_recon_loss')
+        plt.plot(epoch, embedd_loss1, '-g', label='train_embedding_loss')
+        plt.plot(epoch, recon_loss, '-y', label='train_recon_loss')
 
     plt.xlabel('Epoch')
     plt.legend()
     plt.title('compare_loss')
-    plt.savefig(os.path.join(work_dir, 'trn_loss.png'))
+    plt.savefig(os.path.join(work_dir, 'trn_loss_{}.png'.format(labelname)))
+    plt.close()
+
 
     plt.figure(2)
-    plt.plot(epoch, iou1, '-b', label='train-{}'.format(labelname))
-    plt.plot(epoch, iou2, '-r', label='val-{}'.format(labelname))
+    plt.plot(epoch, iou1, '-b', label='train_iou')
+    plt.plot(epoch, iou2, '-r', label='val_iou')
 
     plt.xlabel('Epoch')
     plt.legend()
     plt.title('compare_iou')
-    plt.savefig(os.path.join(work_dir, 'compare_val_perf.png'))
+    plt.savefig(os.path.join(work_dir, 'compare_val_perf_{}.png'
+                             .format(labelname)))
+
 
     plt.close()
 
