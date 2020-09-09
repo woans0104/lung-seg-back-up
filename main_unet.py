@@ -141,7 +141,10 @@ def main():
     # 4.optim
 
     if args.optim == 'adam':
-        optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer_seg = torch.optim.Adam(model_seg.parameters(),
+                                         lr=args.lr,
+                                         eps=1e-3,
+                                         weight_decay=args.weight_decay)
     elif args.optim == 'adamp':
         optimizer_seg = AdamP(model_seg.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     elif args.optim == 'sgd':

@@ -17,7 +17,13 @@ import cv2
 
 class Lung_Dataset(Dataset):
 
-    def __init__(self, image_paths, target_paths, transform, aug_mode=False,aug_range='aug6',dataset='mc'):
+    def __init__(self,
+                 image_paths,
+                 target_paths,
+                 transform,
+                 aug_mode=False,
+                 aug_range='aug6',
+                 dataset='mc'):
 
 
         self.image_paths = image_paths
@@ -28,13 +34,13 @@ class Lung_Dataset(Dataset):
         self.dataset = dataset
 
 
-    def aug(self, image, aug_range):
+    def aug(self, image, mask, aug_range):
 
 
         # transform pil image
         pil_image = transforms.ToPILImage()
         image = pil_image(image)
-
+        mask = pil_image(mask)
 
         if aug_range == 'aug6':
             random_factor1 = random.random()
@@ -90,6 +96,26 @@ class Lung_Dataset(Dataset):
             contrast_factor = random.uniform(0.6, 1.2)
             image = transforms.functional.adjust_contrast(image, contrast_factor)
 
+        elif aug_range == 'aug11':
+
+            #resized_crop = transforms.RandomResizedCrop(256, scale=(0.8,1.0))
+            #color_jitter = transforms.ColorJitter(brightness=0.4, contrast=0.4)
+            color_jitter = transforms.ColorJitter(brightness=0.2, contrast=0.2)
+
+            #transform = transforms.Compose([resized_crop, color_jitter])
+
+            image = color_jitter(image)
+
+            i, j, h, w = transforms.RandomResizedCrop.get_params(image,
+                                                                 scale=(0.8,1.0),
+                                                                 ratio=(0.9,1.1))
+            image = transforms.functional.resized_crop(image, i, j, h, w, (256,256))
+            mask = transforms.functional.resized_crop(mask, i, j, h, w, (256,256))
+
+            image = np.array(image)
+            mask = np.array(mask)
+
+            return image, mask
 
         image = np.array(image)
 
@@ -112,14 +138,17 @@ class Lung_Dataset(Dataset):
         if self.dataset.lower() == 'jsrt':
             image = cv2.bitwise_not(image)
 
+        image = cv2.equalizeHist(image)
 
         # cv2 resize
-        image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
-        mask = cv2.resize(mask, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
+        #image = cv2.resize(image, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
+        #mask = cv2.resize(mask, dsize=(256, 256), interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, dsize=(256, 256))
+        mask = cv2.resize(mask, dsize=(256, 256))
 
         # aug
         if self.aug_mode:
-            image = self.aug(image,self.aug_range)
+            image, mask = self.aug(image, mask, self.aug_range)
 
         image_tensor = self.transforms(image)
 
@@ -192,11 +221,18 @@ def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, wor
 
         train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,aug_range=aug_range,
                                             dataset=dataset)
-        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+        train_loader = data.DataLoader(train_dataset,
+                                       batch_size=batch_size,
+                                       shuffle=True,
+                                       drop_last=True,
+                                       num_workers=4)
 
         test_dataset = Lung_Dataset(test_image_path, test_label_path, transform,dataset=dataset)
 
-        test_loader = data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
+        test_loader = data.DataLoader(test_dataset,
+                                      batch_size=1,
+                                      shuffle=True,
+                                      num_workers=0)
 
         return train_loader, test_loader
 
@@ -207,7 +243,11 @@ def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, wor
         train_dataset = Lung_Dataset(train_image_path, train_label_path, transform, aug_mode=aug_mode,
                                      aug_range=aug_range,dataset=dataset)
 
-        train_loader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+        train_loader = data.DataLoader(train_dataset,
+                                       batch_size=batch_size,
+                                       shuffle=True,
+                                       drop_last=True,
+                                       num_workers=4)
 
 
         return train_loader , train_loader
@@ -219,7 +259,7 @@ def get_loader(server, dataset, train_size, batch_size, aug_mode, aug_range, wor
 
 def load_data_path(server, dataset, train_size):
 
-    
+
     def read_data(data_folder):
 
         valid_exts = ['.jpg', '.gif', '.png', '.tga', '.jpeg']
@@ -269,6 +309,9 @@ def load_data_path(server, dataset, train_size):
     elif server == 'server_B':
         image_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/{}/label/*".format(dataset)))
+    elif server == 'server_D':
+        image_folder = sorted(glob.glob('/daintlab/data/lung_segmentation_dataset/{}/image/*'.format(dataset)))
+        target_folder = sorted(glob.glob('/daintlab/data/lung_segmentation_dataset/{}/label/*'.format(dataset)))
     #####################################################################################################################
 
     image_paths =read_data(image_folder)

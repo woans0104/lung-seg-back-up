@@ -251,7 +251,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
     model_seg_decoder.train()
 
     #model_seg.train()
-    model_ae.train()
+    #model_ae.train()
     end = time.time()
 
     optimizer_seg_encoder, optimizer_seg_decoder = optimizer_seg
@@ -268,33 +268,33 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
 
 
         # autoencoder
-        if args.denoising == True:
-            noisy_batch_input=make_noise_input(target, args.salt_prob)
+        #if args.denoising == True:
+        #    noisy_batch_input=make_noise_input(target, args.salt_prob)
             #output_ae, bottom_ae = model_ae(noisy_batch_input)
-            ae_center = model_ae(noisy_batch_input)
+        #    ae_center = model_ae(noisy_batch_input)
 
-        else:
+        #else:
             #output_ae, bottom_ae = model_ae(target)
-            pass
+        #    pass
 
         # output from seg and ae
         output_seg = model_seg_decoder(seg_center, intermediate)
-        output_ae = model_seg_decoder(ae_center, intermediate)
+        #output_ae = model_seg_decoder(ae_center, intermediate)
 
 
         # loss-function
 
         loss_seg = criterion_seg(output_seg, target)
-        loss_ae = criterion_ae(output_ae, target)
+        #loss_ae = criterion_ae(output_ae, target)
         #loss_ae = criterion_seg(output_ae, target)
 
 
         # embedding loss
         #loss_embedding = embedding_loss(args.embedding_loss_function, criterion_embedding,
         #                                bottom_seg, bottom_ae,args.arch_ae_detach)
-        loss_embedding = embedding_loss(args.embedding_loss_function, criterion_embedding,
-                                        seg_center, ae_center,args.arch_ae_detach)
-        loss_embedding = float(args.embedding_alpha) * loss_embedding
+        #loss_embedding = embedding_loss(args.embedding_loss_function, criterion_embedding,
+        #                                seg_center, ae_center,args.arch_ae_detach)
+        #loss_embedding = float(args.embedding_alpha) * loss_embedding
 
 
 
@@ -306,7 +306,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
             total_loss = (loss_seg) + (loss_embedding) + (loss_recon)
 
         else:
-            total_loss = (loss_seg) + (loss_embedding)
+            total_loss = loss_seg
 
 
         #print('loss_seg : ', loss_seg)
@@ -320,14 +320,14 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
 
         iou, dice = performance(output_seg, target,dist_con=False)
         losses.update(total_loss.item(), input.size(0))
-        embedding_losses.update(loss_embedding.item(), input.size(0))
+        #embedding_losses.update(loss_embedding.item(), input.size(0))
         ious.update(iou, input.size(0))
         dices.update(dice, input.size(0))
 
 
         optimizer_seg_encoder.zero_grad()
         optimizer_seg_decoder.zero_grad()
-        optimizer_ae.zero_grad()
+        #optimizer_ae.zero_grad()
 
 
         # first ae backward
@@ -337,14 +337,14 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
         #else:
         #    loss_ae.backward(retain_graph=True)
 
-        loss_ae.backward(retain_graph=True)
+        #loss_ae.backward(retain_graph=True)
 
 
         # second se backward
 
         total_loss.backward()
 
-        optimizer_ae.step()
+        #optimizer_ae.step()
         optimizer_seg_encoder.step()
         optimizer_seg_decoder.step()
 
@@ -374,7 +374,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
     if args.arch_seg == 'unet_recon':
         logger.write([epoch, losses.avg, embedding_losses.avg,recon_losses.avg, ious.avg, dices.avg])
     else:
-        logger.write([epoch, losses.avg,embedding_losses.avg, ious.avg, dices.avg])
+        logger.write([epoch, losses.avg, ious.avg, dices.avg])
 
 
 

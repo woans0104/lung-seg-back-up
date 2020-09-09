@@ -27,6 +27,9 @@ def main_test(model=None, args=None, test_loader=None):
     elif args.server == 'server_B':
         work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up', args.exp)
         print(work_dir)
+    elif args.server == 'server_D':
+        work_dir = os.path.join('/daintlab/home/shwang/workspace/lung-seg-back-up', args.exp)
+        print(work_dir)
 
     file_name = args.file_name
 
@@ -36,13 +39,18 @@ def main_test(model=None, args=None, test_loader=None):
 
     # load model and input stats
 
-    if model is None:
-        model = select_model(args.arch)
-        model = nn.DataParallel(model).cuda()
+    #if model is None:
+    #    model = select_model(args.arch)
+    #    model = nn.DataParallel(model).cuda()
+    model_encoder = Unet2D_encoder(in_shape=(1,256,256))
+    model_decoder = Unet2D_decoder(in_shape=(1,256,256))
+    model_encoder = nn.DataParallel(model_encoder).cuda()
+    model_decoder = nn.DataParallel(model_decoder).cuda()
 
     checkpoint_path = os.path.join(work_dir, 'model_best.pth')
     state = torch.load(checkpoint_path)
-    model.load_state_dict(state['state_dict'])
+    model_encoder.load_state_dict(state['state_dict'][0])
+    model_decoder.load_state_dict(state['state_dict'][1])
     cudnn.benchmark = True
 
     source_dataset, target_dataset1, target_dataset2 = loader.dataset_condition(args.source_dataset)
@@ -53,12 +61,12 @@ def main_test(model=None, args=None, test_loader=None):
 
         if test_loader is None:
             prediction_li, org_input_li, org_target_li, img_name_li = predict(server=args.server, work_dir=work_dir,
-                                                                              model=model,
+                                                                              model=[model_encoder, model_decoder],
                                                                               exam_root=test_data_name_li[i], args=args)
 
         else:
             prediction_li, org_input_li, org_target_li, img_name_li = predict(server=args.server, work_dir=work_dir,
-                                                                              model=model, exam_root=None,
+                                                                              model=[model_encoder, model_decoder], exam_root=None,
                                                                               tst_loader=test_loader[i], args=args)
 
         # measure performance
@@ -68,7 +76,7 @@ def main_test(model=None, args=None, test_loader=None):
         if not os.path.exists(result_dir_sep):
             os.makedirs(result_dir_sep)
 
-        save_fig(org_input_li, org_target_li, prediction_li, performance, result_dir_sep)
+        #save_fig(org_input_li, org_target_li, prediction_li, performance, result_dir_sep)
         collated_performance[test_data_name_li[i]] = performance
 
     # save_result
@@ -100,6 +108,8 @@ def predict(server, work_dir, model, exam_root, tst_loader=None, args=None):
         except:
             ipdb.set_trace()
 
+        import ipdb; ipdb.set_trace()
+
         if exam_root == npy_file[0].lower().split('/')[-1].split('_')[0]:
             tst_data_path = np.load(npy_file[0]).tolist()
             tst_img_data_path, tst_label_data_path = tst_data_path
@@ -118,16 +128,22 @@ def predict(server, work_dir, model, exam_root, tst_loader=None, args=None):
     target_img_li = []
     image_name_li = []
 
-    model.eval()
+    model_encoder, model_decoder = model
+    model_encoder.eval()
+    model_decoder.eval()
+
+    #model.eval()
     with torch.no_grad():
         for i, (input, target, img_ori, image_name) in enumerate(tst_loader):
 
             input = input.cuda()
 
-            try:
-                output = model(input)
-            except:
-                output, _ = model(input)
+            #try:
+            center, intermediate = model_encoder(input)
+            output = model_decoder(center, intermediate)
+            #except:
+                #output, _ = model(input)
+            #    pass
 
             # convert to prob
 
@@ -310,7 +326,7 @@ def save_fig(org_input, org_target, prediction,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--server', default='server_B')
+    parser.add_argument('--server', default='server_D')
     parser.add_argument('--exp', type=str)
     parser.add_argument('--file-name', default='result_all_acd', type=str)
 
