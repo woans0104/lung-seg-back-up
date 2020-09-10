@@ -47,6 +47,7 @@ def main_test(model=None, args=None, test_loader=None):
         model = select_model(args.arch)
         model = nn.DataParallel(model).cuda()
 
+
     checkpoint_path = os.path.join(work_dir, 'model_best.pth')
     state = torch.load(checkpoint_path)
     model.load_state_dict(state['state_dict'])

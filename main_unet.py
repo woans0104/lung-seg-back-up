@@ -60,6 +60,7 @@ parser.add_argument('--optim',default='sgd',
                     choices=['adam','adamp','sgd'],type=str)
 
 parser.add_argument('--weight-decay',default=5e-4,type=float)
+parser.add_argument('--eps',default=1e-8,type=float, help='adam eps')
 
 parser.add_argument('--loss-function',default='bce',type=str)
 parser.add_argument('--lr',default=0.1,type=float,help='initial-lr')
@@ -173,10 +174,13 @@ def main():
 
     if args.optim == 'adam':
         optimizer_seg = torch.optim.Adam(model_seg.parameters(), lr=args.lr,
-                                         weight_decay=args.weight_decay)
+                                         weight_decay=args.weight_decay,
+                                         eps=args.eps)
+
     elif args.optim == 'adamp':
         optimizer_seg = AdamP(model_seg.parameters(), lr=args.lr,
-                              weight_decay=args.weight_decay)
+                              weight_decay=args.weight_decay,
+                              eps=args.eps)
     elif args.optim == 'sgd':
         optimizer_seg = torch.optim.SGD(model_seg.parameters(), lr=args.lr,
                                         momentum=0.9,

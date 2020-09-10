@@ -28,6 +28,8 @@ from losses import DiceLoss,ClDice
 from adamp import AdamP
 
 
+
+
 parser = argparse.ArgumentParser()
 # arguments for dataset
 parser.add_argument('--server', default='server_B')
@@ -57,8 +59,8 @@ parser.add_argument('--salt-prob', default=0.1, type=float)
 parser.add_argument('--optim',default='sgd',
                     choices=['adam','adamp','sgd'],type=str)
 parser.add_argument('--weight-decay',default=5e-4,type=float)
-parser.add_argument('--eps',default=5e-4,type=float, help='adam eps')
-parser.add_argument('--adam-beta1',default=5e-4,type=float, help='adam beta')
+parser.add_argument('--eps',default=1e-8,type=float, help='adam eps')
+parser.add_argument('--adam-beta1',default=0.9,type=float, help='adam beta')
 
 
 
@@ -72,8 +74,6 @@ parser.add_argument('--lr-schedule', default=[100,120], nargs='+', type=int)
 # arguments for test mode
 parser.add_argument('--file-name', default='result_all', type=str)
 parser.add_argument('--test-mode',default=True,type=str2bool)
-
-
 
 
 args = parser.parse_args()
@@ -498,48 +498,6 @@ def validate(model_seg,model_ae, val_loader, epoch, criterion,
 
     return ious.avg
 
-
-# def validate(model, val_loader, epoch, criterion, logger, logger_ae):
-#     batch_time = AverageMeter()
-#     losses = AverageMeter()
-#     ious = AverageMeter()
-#     dices = AverageMeter()
-#
-#     losses_ae = AverageMeter()
-#     ious_ae = AverageMeter()
-#     dices_ae = AverageMeter()
-#
-#     model.eval()
-#
-#     with torch.no_grad():
-#         end = time.time()
-#         for i, (input, target, ori_img, image_name) in enumerate(val_loader):
-#             input = input.cuda()
-#             target = target.cuda()
-#
-#             output, _ = model(input)
-#             loss = criterion(output, target)
-#
-#             # seg-log
-#             iou, dice = performance(output, target, dist_con=False)
-#             losses.update(loss.item(), input.size(0))
-#             ious.update(iou, input.size(0))
-#             dices.update(dice, input.size(0))
-#
-#             # ae-log
-#
-#             batch_time.update(time.time() - end)
-#             end = time.time()
-#
-#     print(' * IoU {ious.avg:.3f}({ious.std:.3f}) '
-#           'Dice {dices.avg:.3f}({dices.std:.3f})'.format(
-#         ious=ious, dices=dices))
-#
-#     logger.write([epoch, losses.avg, ious.avg, dices.avg])
-#
-#     return ious.avg
-
-
 def select_loss(loss_function):
     if loss_function == 'bce':
         criterion = nn.BCELoss()
@@ -560,6 +518,32 @@ def select_loss(loss_function):
     else:
         raise ValueError('Not supported loss.')
     return criterion.cuda()
+
+
+def embedding_loss(embedding_loss, criterion_embedding,
+                   bottom_seg, bottom_ae, detach):
+    if detach == True:
+        bottom_ae = bottom_ae.detach()
+
+    if embedding_loss == 'kl':
+        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg),
+                                             F.softmax(bottom_ae))
+    elif embedding_loss == 'jsd':
+        loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
+                                                    F.softmax(bottom_ae))) \
+                         + (0.5 * criterion_embedding(
+            F.log_softmax(bottom_seg),
+            F.softmax(bottom_ae)))
+
+    elif embedding_loss == 'bce':
+        bottom_seg = F.sigmoid(bottom_seg).cuda()
+        bottom_ae = F.sigmoid(bottom_ae).cuda()
+        loss_embedding = criterion_embedding(bottom_seg, bottom_ae)  # bce
+    else:
+        # MSE
+        loss_embedding = criterion_embedding(bottom_seg, bottom_ae)
+
+    return loss_embedding
 
 
 if __name__ == '__main__':
