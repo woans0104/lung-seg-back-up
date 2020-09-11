@@ -11,9 +11,11 @@ import torch.nn as nn
 import shutil
 from collections import Iterable
 import argparse
+from medpy.metric import binary
 
 from model import *
 from losses import DiceLoss,ClDice
+
 
 class AverageMeter(object):
 
@@ -190,13 +192,6 @@ def salt_and_pepper(img, prob):
     return noisy
 
 
-#
-# def send_slack_message(channel, messge,
-#                        token='str'):
-#     token = token
-#     slack = Slacker(token)
-#     slack.chat.post_message(channel, messge)
-
 
 
 def save_checkpoint(state, is_best, work_dir, filename='checkpoint.pth'):
@@ -247,78 +242,6 @@ def gramMatrix(input):
 
 
 
-def select_model(network,style='style1'):
-
-    # model_new
-
-    if network == 'unet' or network == 'unet_recon' \
-            or network == 'ACNN' or network == 'SRM':
-        my_net = Unet2D(in_shape=(1, 256, 256))
-    elif network =='ae_v2':
-        my_net= ae_lung(in_shape=(1, 256, 256))
-
-    elif network == 'unet_style':
-        my_net = Unet2D_style(in_shape=(1, 256, 256), style=style)
-    elif network == 'ae_v2_style':
-        my_net = ae_lung_style(in_shape=(1, 256, 256), style=style)
-
-    else:
-        raise ValueError('Not supported network.')
-
-
-
-    return my_net
-
-
-# def select_loss(loss_function):
-#     if loss_function == 'bce':
-#         criterion = nn.BCELoss()
-#     elif loss_function == 'bce_logit':
-#         criterion = nn.BCEWithLogitsLoss()
-#     elif loss_function == 'dice':
-#         criterion = DiceLoss()
-#     elif loss_function == 'mse':
-#         criterion = nn.MSELoss()
-#     elif loss_function == 'l1':
-#         criterion = nn.L1Loss()
-#     elif loss_function == 'kl' or loss_function == 'jsd':
-#         criterion = nn.KLDivLoss()
-#     elif loss_function == 'Cldice':
-#         bce = nn.BCELoss()
-#         dice = DiceLoss()
-#         criterion = ClDice(bce,dice,alpha=1,beta=1)
-#     else:
-#         raise ValueError('Not supported loss.')
-#     return criterion
-
-
-
-def embedding_loss(embedding_loss,criterion_embedding,
-                   bottom_seg, bottom_ae, detach):
-
-    if detach == True:
-        bottom_ae = bottom_ae.detach()
-
-    if embedding_loss == 'kl':
-        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg),
-                                             F.softmax(bottom_ae))
-    elif embedding_loss == 'jsd':
-        loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
-                                                    F.softmax(bottom_ae))) \
-                         + (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
-                                                       F.softmax(bottom_ae)))
-                   
-    elif embedding_loss == 'bce':
-        bottom_seg = F.sigmoid(bottom_seg).cuda()
-        bottom_ae = F.sigmoid(bottom_ae).cuda()
-        loss_embedding = criterion_embedding(bottom_seg, bottom_ae)  # bce
-    else:
-        # MSE
-        loss_embedding = criterion_embedding(bottom_seg, bottom_ae)
-
-    return loss_embedding
-
-
 def save_fig(exam_id, org_input, org_target, prediction, iou,
              result_dir, work_dir_name, slice_id):
 
@@ -357,13 +280,14 @@ def save_fig(exam_id, org_input, org_target, prediction, iou,
     target_slice = org_target
     pred_slice = prediction
 
+    i_w,i_h = input_slice.shape
     target_slice_pos_pixel = target_slice.sum()
     target_slice_pos_pixel_rate = np.round(target_slice_pos_pixel
-                                           / (512 * 512) * 100, 2)
+                                           / (i_w * i_h) * 100, 2)
 
     pred_slice_pos_pixel = pred_slice.sum()
     pred_slice_pos_pixel_rate = np.round(pred_slice_pos_pixel
-                                         / (512 * 512) * 100, 2)
+                                         / (i_w * i_h) * 100, 2)
 
     fig = plt.figure(figsize=(15, 5))
     ax = []

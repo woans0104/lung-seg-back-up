@@ -80,33 +80,10 @@ class Lung_Dataset(Dataset):
             image = tF.adjust_contrast(image, c_factor)
 
 
-
         elif aug_range == 'aug9':
-            #color_jitter = transforms.ColorJitter(brightness=0.2, contrast=0.2)
-            #image = color_jitter(image)
-            b_factor = random.uniform(0.8, 1.2)
-            image = tF.adjust_brightness(image, b_factor)
-
-
-            c_factor = random.uniform(0.8, 1.2)
-            image = tF.adjust_contrast(image, c_factor)
-
-
-        elif aug_range == 'aug9_1':
 
             color_jitter = transforms.ColorJitter(brightness=0.2, contrast=0.2)
             image = color_jitter(image)
-
-
-
-        elif aug_range == 'aug10':
-
-            b_factor = random.uniform(0.6, 1.2)
-            image = tF.adjust_brightness(image, b_factor)
-
-
-            c_factor = random.uniform(0.6, 1.2)
-            image = tF.adjust_contrast(image, c_factor)
 
 
 
@@ -133,13 +110,12 @@ class Lung_Dataset(Dataset):
 
 
         # cv2 resize
-        image = cv2.resize(image, dsize=(256, 256),
-                           interpolation=cv2.INTER_NEAREST)
-        mask = cv2.resize(mask, dsize=(256, 256),
-                          interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, dsize=(256, 256))
+        mask = cv2.resize(mask, dsize=(256, 256))
+
 
         # histogram equalization
-        #image = cv2.equalizeHist(image)
+        image = cv2.equalizeHist(image)
 
         # aug
         if self.aug_mode:
