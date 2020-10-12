@@ -22,7 +22,7 @@ import dataloader as loader
 
 
 
-def main_test(model=None, test_loader=None, args=None,):
+def main_test(model=None, test_loader=None, args=None):
 
     ##########################################################################
     if args.server == 'server_A':
@@ -55,11 +55,11 @@ def main_test(model=None, test_loader=None, args=None,):
     model.load_state_dict(state['state_dict'])
     cudnn.benchmark = True
 
-    source_dataset, target_dataset1, target_dataset2, target_dataset3 = \
+    source_dataset, target_dataset1, target_dataset2  = \
         loader.dataset_condition(args.source_dataset)
 
     test_data_name_li = [source_dataset, target_dataset1,
-                         target_dataset2, target_dataset3]
+                         target_dataset2 ]
 
     collated_performance = {}
     for i in range(len(test_data_name_li)):

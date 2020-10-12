@@ -44,7 +44,7 @@ def main_test(model=None, args=None, test_loader=None):
     # load model and input stats
 
     if model is None:
-        model = select_model(args.arch)
+        model = Unet2D(in_shape=(1, 256, 256))
         model = nn.DataParallel(model).cuda()
 
 
@@ -52,11 +52,13 @@ def main_test(model=None, args=None, test_loader=None):
     state = torch.load(checkpoint_path)
     model.load_state_dict(state['state_dict'])
     cudnn.benchmark = True
-
+    # import ipdb;
+    # ipdb.set_trace()
     source_dataset, target_dataset1, target_dataset2 = \
         loader.dataset_condition(args.source_dataset)
 
-    test_data_name_li = [source_dataset, target_dataset1, target_dataset2]
+
+    test_data_name_li = [args.source_dataset, target_dataset1, target_dataset2]
 
     collated_performance = {}
     for i in range(len(test_data_name_li)):
@@ -122,12 +124,10 @@ def predict(server, work_dir, model, exam_root, tst_loader=None, args=None):
                                     transforms.Normalize([0.5], [0.5])])
     if tst_loader == None:
 
-        try:
-            npy_file = sorted(glob.glob(work_dir + '/*.npy'))
-        except:
-            ipdb.set_trace()
 
-        if exam_root == npy_file[0].lower().split('/')[-1].split('_')[0]:
+        npy_file = sorted(glob.glob(work_dir + '/*.npy'))
+        #import ipdb; ipdb.set_trace()
+        if exam_root.lower() == npy_file[0].lower().split('/')[-1].split('_')[0]:
             tst_data_path = np.load(npy_file[0]).tolist()
             tst_img_data_path, tst_label_data_path = tst_data_path
 
@@ -368,12 +368,12 @@ def save_fig(org_input, org_target, prediction,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--server', default='server_B')
+    parser.add_argument('--server', default='server_D')
     parser.add_argument('--exp', type=str)
-    parser.add_argument('--file-name', default='result_all_acd', type=str)
+    parser.add_argument('--file-name', default='result_clean_acd', type=str)
 
-    parser.add_argument('--source-dataset', default='JSRT',
-                        help='JSRT_dataset,MC_dataset,SH_dataset')
+    parser.add_argument('--source-dataset', default='MC',
+                        help='JSRT,MC,SH')
 
     parser.add_argument('--arch', default='unet', type=str)
     parser.add_argument('--batch-size', default=1, type=int)

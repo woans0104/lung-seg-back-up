@@ -146,33 +146,55 @@ class Lung_Dataset(Dataset):
 
 
 
+#
+# def dataset_condition(trainset_condition):
+#     dataset = {
+#         'JSRT': ['MC_modified', 'SH'],
+#         'MC_modified': ['JSRT', 'SH'],
+#         'SH': ['JSRT', 'MC_modified']
+#     }
+#
+#     if trainset_condition in dataset.keys():
+#         print('*' * 50)
+#         print('train dataset : ', trainset_condition)
+#         print('test dataset1 : ', dataset[trainset_condition][0])
+#         print('test dataset2 : ', dataset[trainset_condition][1])
+#         print('*' * 50)
+#
+#         train_datset = trainset_condition
+#         test_dataset1 = dataset[trainset_condition][0]
+#         test_dataset2 = dataset[trainset_condition][1]
+#
+#         return train_datset, test_dataset1, test_dataset2
+#
+#     else:
+#         import ipdb;
+#         ipdb.set_trace()
+
 
 def dataset_condition(trainset_condition):
     dataset = {
-        'JSRT': ['MC_modified', 'SH'],
-        'MC_modified': ['JSRT', 'SH'],
-        'SH': ['JSRT', 'MC_modified']
+        'JSRT': ['JSRT','MC_modified', 'SH'],
+        'MC': ['MC_modified','JSRT', 'SH'],
+        'SH': ['SH','JSRT', 'MC_modified']
     }
 
     if trainset_condition in dataset.keys():
         print('*' * 50)
-        print('train dataset : ', trainset_condition)
-        print('test dataset1 : ', dataset[trainset_condition][0])
-        print('test dataset2 : ', dataset[trainset_condition][1])
+        print('train dataset : ', dataset[trainset_condition][0])
+        print('test dataset1 : ', dataset[trainset_condition][1])
+        print('test dataset2 : ', dataset[trainset_condition][2])
         print('*' * 50)
 
-        train_datset = trainset_condition
-        test_dataset1 = dataset[trainset_condition][0]
-        test_dataset2 = dataset[trainset_condition][1]
+        train_datset = dataset[trainset_condition][0]
+        test_dataset1 = dataset[trainset_condition][1]
+        test_dataset2 = dataset[trainset_condition][2]
 
         return train_datset, test_dataset1, test_dataset2
 
     else:
         import ipdb;
         ipdb.set_trace()
-
-
-
 
 def get_loader(server, dataset, train_size, batch_size,
                aug_mode, aug_range, work_dir=None):
@@ -203,6 +225,7 @@ def get_loader(server, dataset, train_size, batch_size,
         trn_loader = data.DataLoader(trn_dataset,
                                        batch_size=batch_size,
                                        shuffle=True,
+                                       drop_last = True, ####################
                                        num_workers=4)
 
         tst_dataset = Lung_Dataset(tst_image_path,
@@ -304,15 +327,32 @@ def load_data_path(server, dataset, train_size):
                                         "{}/image/*".format(dataset)))
         target_folder = sorted(glob.glob("/data2/lung_segmentation_dataset/"
                                          "{}/label/*".format(dataset)))
+    elif server == 'server_C':
+        image_folder = sorted(glob.glob("/daintlab/data/"
+                                        "lung_segmentation_dataset/{}/image/*"
+                                        .format(dataset)))
+        target_folder = sorted(glob.glob("/daintlab/data/"
+                                          "lung_segmentation_dataset/{}/label/*"
+                                          .format(dataset)))
+
+        if dataset == 'SH_dataset':
+            target_folder = sorted(glob.glob("/daintlab/data/"
+                                         "lung_segmentation_dataset/{}/label_clean/*"
+                                         .format(dataset)))
+
     elif server == 'server_D':
         image_folder = sorted(glob.glob("/daintlab/data/"
                                         "lung_segmentation_dataset/{}/image/*"
                                         .format(dataset)))
         target_folder = sorted(glob.glob("/daintlab/data/"
-                                         "lung_segmentation_dataset/{}/label/*"
-                                         .format(dataset)))
+                                          "lung_segmentation_dataset/{}/label/*"
+                                          .format(dataset)))
 
-    ##########################################################################
+        if dataset == 'SH_dataset':
+            target_folder = sorted(glob.glob("/daintlab/data/"
+                                         "lung_segmentation_dataset/{}/label_clean/*"
+                                         .format(dataset)))
+        ##########################################################################
 
     image_paths =read_data(image_folder)
     target_paths = read_data(target_folder)

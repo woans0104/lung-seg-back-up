@@ -86,15 +86,159 @@ class StackDecoder(nn.Module):
 
 # model
 
-
 class Unet2D(nn.Module):
     """
     ori unet : padding =1, momentum=0.1,coordconv =False
     down_crop unet : padding =0, momentum=0.1,coordconv =False
     """
 
-    def __init__(self, in_shape, padding=1,start_channel=32):
+    def __init__(self, in_shape, padding=1, start_channel=32, relu_con=True):
         super(Unet2D, self).__init__()
+        self.channels, self.heights, self.width = in_shape
+        self.start_channel = start_channel
+        self.relu_con = relu_con
+
+        self.down1 = StackEncoder(self.channels, self.start_channel, padding)
+        self.down2 = StackEncoder(self.start_channel, self.start_channel * 2,
+                                  padding)
+        self.down3 = StackEncoder(self.start_channel * 2,
+                                  self.start_channel * 4, padding)
+        self.down4 = StackEncoder(self.start_channel * 4,
+                                  self.start_channel * 8, padding)
+
+        self.center = nn.Sequential(
+            ConvBnRelu(self.start_channel * 8, self.start_channel * 16,
+                       kernel_size=(3, 3), stride=1, padding=padding),
+            nn.Conv2d(self.start_channel * 16, self.start_channel * 16,
+                      kernel_size=(3, 3), padding=padding, stride=1),
+            nn.BatchNorm2d(self.start_channel * 16),
+            #nn.ReLU()
+        )
+
+        self.up1 = StackDecoder(in_channels=self.start_channel * 16,
+                                out_channels=self.start_channel * 8,
+                                padding=padding)
+        self.up2 = StackDecoder(in_channels=self.start_channel * 8,
+                                out_channels=self.start_channel * 4,
+                                padding=padding)
+        self.up3 = StackDecoder(in_channels=self.start_channel * 4,
+                                out_channels=self.start_channel * 2,
+                                padding=padding)
+        self.up4 = StackDecoder(in_channels=self.start_channel * 2,
+                                out_channels=self.start_channel,
+                                padding=padding)
+
+        self.output_seg_map = nn.Conv2d(self.start_channel, 1,
+                                        kernel_size=(1, 1), padding=0,
+                                        stride=1)
+
+    def forward(self, x):
+        x, x_trace1 = self.down1(x)
+        x, x_trace2 = self.down2(x)
+        x, x_trace3 = self.down3(x)
+        x, x_trace4 = self.down4(x)
+
+        center = self.center(x)
+
+        x = self.up1(center, x_trace4)
+        x = self.up2(x, x_trace3)
+        x = self.up3(x, x_trace2)
+
+        x = self.up4(x, x_trace1)
+
+        out = self.output_seg_map(x)
+
+        if self.relu_con:
+            center = F.relu(center)
+
+        return out, center
+
+
+
+
+class ae_lung(nn.Module):
+    # down 4
+    def __init__(self,in_shape,start_channel=32,kenel_size=3,padding=1,relu_con=True):
+        super(ae_lung, self).__init__()
+
+        self.channels, self.heights, self.width = in_shape
+        self.relu_con = relu_con
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, start_channel, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+
+            nn.Conv2d(start_channel, start_channel * 2, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel*2),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+
+            nn.Conv2d(start_channel * 2, start_channel * 4, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel*4),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+
+            nn.Conv2d(start_channel * 4, start_channel * 8, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel * 8),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+
+            #center
+            nn.Conv2d(start_channel * 8, start_channel * 16, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel * 16),
+            #nn.ReLU(),
+
+        )
+
+        self.decoder = nn.Sequential(
+
+            nn.ConvTranspose2d(start_channel*16, start_channel*16, 2, stride=2),
+            nn.Conv2d(start_channel * 16, start_channel * 8, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel*8),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(start_channel * 8, start_channel * 8, 2, stride=2),
+            nn.Conv2d(start_channel * 8, start_channel * 4, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel * 4),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(start_channel * 4, start_channel*4, 2, stride=2),
+            nn.Conv2d(start_channel * 4, start_channel * 2, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel*2),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(start_channel*2 , start_channel*2, 2, stride=2),
+            nn.Conv2d(start_channel * 2, start_channel, kenel_size, padding=padding),
+            nn.BatchNorm2d(start_channel),
+            nn.ReLU(),
+
+
+            nn.Conv2d(start_channel, 1, 1)
+
+        )
+
+
+    def forward(self, x):
+        encoder = self.encoder(x)
+        decoder = self.decoder(encoder)
+
+        if self.relu_con :
+            encoder = F.relu(encoder)
+
+        return decoder, encoder
+
+
+
+class Unet2D_srm(nn.Module):
+    """
+    ori unet : padding =1, momentum=0.1,coordconv =False
+    down_crop unet : padding =0, momentum=0.1,coordconv =False
+    """
+
+    def __init__(self, in_shape, padding=1,start_channel=32):
+        super(Unet2D_srm, self).__init__()
         self.channels, self.heights, self.width = in_shape
         self.start_channel = start_channel
 
@@ -106,7 +250,8 @@ class Unet2D(nn.Module):
 
         self.center = nn.Sequential(
             ConvBnRelu(self.start_channel*8, self.start_channel*16, kernel_size=(3, 3), stride=1, padding=padding),
-            ConvBnRelu(self.start_channel*16, self.start_channel*16, kernel_size=(3, 3), stride=1, padding=padding)
+            nn.Conv2d(self.start_channel * 16, self.start_channel * 16,kernel_size=(3, 3),padding=padding, stride=1),
+            nn.BatchNorm2d(self.start_channel * 16)
         )
 
         self.up1 = StackDecoder(in_channels=self.start_channel*16, out_channels=self.start_channel*8, padding=padding)
@@ -139,12 +284,10 @@ class Unet2D(nn.Module):
         return out,center
 
 
-
-
-class ae_lung(nn.Module):
+class ae_lung_srm(nn.Module):
     # down 4
     def __init__(self,in_shape,start_channel=32,kenel_size=3,padding=1):
-        super(ae_lung, self).__init__()
+        super(ae_lung_srm, self).__init__()
 
         self.channels, self.heights, self.width = in_shape
 
@@ -172,7 +315,7 @@ class ae_lung(nn.Module):
             #center
             nn.Conv2d(start_channel * 8, start_channel * 16, kenel_size, padding=padding),
             nn.BatchNorm2d(start_channel * 16),
-            nn.ReLU(),
+            #nn.ReLU(),
 
         )
 
@@ -209,6 +352,19 @@ class ae_lung(nn.Module):
         decoder = self.decoder(encoder)
 
         return decoder, encoder
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

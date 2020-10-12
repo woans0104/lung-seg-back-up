@@ -22,7 +22,7 @@ from medpy.metric import binary
 import dataloader as loader
 from utils import *
 import torch.optim as optim
-from predict import main_test
+from autoencoder_pred import main_test
 from adamp import AdamP
 
 parser = argparse.ArgumentParser()
@@ -46,8 +46,7 @@ parser.add_argument('--aug-range',default='aug2', type=str)
 
 
 # arguments for model
-parser.add_argument('--arch', default='unet', type=str)
-parser.add_argument('--start-channel', default=64, type=int)
+parser.add_argument('--arch', default='ae_lung', type=str)
 parser.add_argument('--denoising',default=False,type=str2bool)
 parser.add_argument('--salt-prob', default=0.1, type=float)
 
@@ -71,9 +70,6 @@ parser.add_argument('--test-mode',default=True,type=str2bool)
 
 
 
-# arguments for test mode
-parser.add_argument('--inplace-test', default=1, type=int)
-parser.add_argument('--file-name', default='result_all', type=str)
 
 
 
@@ -89,6 +85,9 @@ def main():
         work_dir = os.path.join('/data1/workspace/JM_gen/lung-seg-back-up',
                                 args.exp)
         print(work_dir)
+    elif args.server == 'server_C':
+        work_dir = os.path.join('/daintlab/home/woans0104/workspace/'
+                                'lung-seg-back-up', args.exp)
     elif args.server == 'server_D':
         work_dir = os.path.join('/daintlab/home/woans0104/workspace/'
                                 'lung-seg-back-up', args.exp)
@@ -281,7 +280,7 @@ def train(model, train_loader, epoch, criterion, optimizer, logger, sublogger):
 
 
         if args.denoising == True:
-            noisy_batch_input = make_noise_input(target)
+            noisy_batch_input = make_noise_input(target,args.salt_prob)
 
             output, _ = model(noisy_batch_input)########
 
@@ -353,7 +352,7 @@ def validate(model, val_loader, epoch, criterion, logger, work_dir):
             ###################################
             save = 1
             if save:
-                if i % 10 == 0:
+                if epoch >= 60 :
                     save_fig(str(epoch), ori_img, target, output, iou,
                              work_dir,'epoch_predict', str(image_name))
 

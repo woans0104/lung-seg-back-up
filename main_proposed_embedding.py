@@ -55,10 +55,14 @@ parser.add_argument('--embedding-alpha', default=1, type=float)
 parser.add_argument('--denoising',default=True,type=str2bool)
 parser.add_argument('--salt-prob', default=0.1, type=float)
 
+parser.add_argument('--relu-con',default=True,type=str2bool)
+
+
 # arguments for optim & loss
 parser.add_argument('--optim',default='sgd',
                     choices=['adam','adamp','sgd'],type=str)
-parser.add_argument('--weight-decay',default=5e-4,type=float)
+parser.add_argument('--weight-decay',default=1e-4,type=float)
+parser.add_argument('--ae-weight-decay',default=1e-4,type=float)
 parser.add_argument('--eps',default=1e-8,type=float, help='adam eps')
 
 
@@ -150,9 +154,9 @@ def main():
 
 
     # 2.model_select
-    model_seg  = Unet2D(in_shape=(1, 256, 256))
+    model_seg  = Unet2D(in_shape=(1, 256, 256),relu_con=args.relu_con)
     model_seg=model_seg.cuda()
-    model_ae = ae_lung(in_shape=(1, 256, 256))
+    model_ae = ae_lung(in_shape=(1, 256, 256),relu_con=args.relu_con)
     model_ae = model_ae.cuda()
 
     cudnn.benchmark = True
@@ -172,7 +176,7 @@ def main():
         optimizer_ae = torch.optim.Adam(model_ae.parameters(),
                                         eps=args.eps,
                                         lr=args.lr,
-                                        weight_decay=args.weight_decay)
+                                        weight_decay=args.ae_weight_decay)
     elif args.optim == 'adamp':
         optimizer_seg = AdamP(model_seg.parameters(),
                               eps=args.eps,
@@ -338,13 +342,15 @@ def train(model_seg, model_ae, train_loader, epoch,
         loss_ae = criterion_ae(output_ae, target)
 
 
-        # embedding loss
+
         loss_embedding = embedding_loss(args.embedding_loss_function,
                                         criterion_embedding,
                                         bottom_seg,
                                         bottom_ae,args.arch_ae_detach)
 
         loss_embedding = float(args.embedding_alpha) * loss_embedding
+
+        #loss_embedding = 0 * loss_embedding
 
 
 
@@ -382,24 +388,24 @@ def train(model_seg, model_ae, train_loader, epoch,
         ious_ae.update(iou_ae, input.size(0))
         dices_ae.update(dice_ae, input.size(0))
 
-
+        #import ipdb; ipdb.set_trace()
         optimizer_seg.zero_grad()
         optimizer_ae.zero_grad()
 
 
-        # first ae backward 
-        
+        # first ae backward
+
         if args.arch_ae_detach:
             loss_ae.backward()
         else:
             loss_ae.backward(retain_graph=True)
 
-        optimizer_ae.step()
-
 
         # second se backward
 
         total_loss.backward()
+        
+        optimizer_ae.step()
         optimizer_seg.step()
 
 
@@ -519,6 +525,7 @@ def embedding_loss(embedding_loss, criterion_embedding,
                    bottom_seg, bottom_ae, detach):
     if detach == True:
         bottom_ae = bottom_ae.detach()
+
 
     if embedding_loss == 'kl':
         loss_embedding = criterion_embedding(F.log_softmax(bottom_seg),

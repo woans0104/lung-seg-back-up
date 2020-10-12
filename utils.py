@@ -341,7 +341,7 @@ def draw_curve(work_dir, logger1, logger2, labelname='seg'):
 
     elif len(logger1[0]) == 6:
         epoch, trn_loss1, embedd_loss1, recon_loss, iou1, dice1 = zip(*logger1)
-        epoch, trn_loss2, iou2, dice2, acd2, asd2 = zip(*logger2)
+        epoch, trn_loss2, iou2, dice2  = zip(*logger2)
 
 
     else:
