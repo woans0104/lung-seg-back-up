@@ -296,15 +296,20 @@ def embedding_loss(embedding_loss,criterion_embedding, bottom_seg, bottom_ae, de
         bottom_ae = bottom_ae.detach()
 
     if embedding_loss == 'kl':
-        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae))
+        #loss_embedding = criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae))
+        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg.flatten(start_dim=2), dim=2).view_as(bottom_seg),
+                                             F.softmax(bottom_ae.flatten(start_dim=2), dim=2).view_as(bottom_ae))
     elif embedding_loss == 'jsd':
         loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae))) \
                          + ( 0.5 * criterion_embedding(F.log_softmax(bottom_seg), F.softmax(bottom_ae)))
-                   
+
     elif embedding_loss == 'bce':
         bottom_seg = F.sigmoid(bottom_seg).cuda()
         bottom_ae = F.sigmoid(bottom_ae).cuda()
         loss_embedding = criterion_embedding(bottom_seg, bottom_ae)  # bce
+    elif embedding_loss == 'cos':
+        cos_sim = criterion_embedding(bottom_seg, bottom_ae).mean()
+        loss_embedding = 1 - cos_sim
     else:
         # MSE
         loss_embedding = criterion_embedding(bottom_seg, bottom_ae)

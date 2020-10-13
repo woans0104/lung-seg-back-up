@@ -294,7 +294,7 @@ def train(model_seg, model_ae, train_loader, epoch, criterion_seg, criterion_ae,
         #                                bottom_seg, bottom_ae,args.arch_ae_detach)
         loss_embedding = embedding_loss(args.embedding_loss_function, criterion_embedding,
                                         seg_center, ae_center,args.arch_ae_detach)
-        loss_embedding = float(args.embedding_alpha) * loss_embedding
+        loss_embedding = float(args.embedding_alpha) * loss_embedding / 256
 
 
 
@@ -434,11 +434,14 @@ def select_loss(loss_function):
     elif loss_function == 'l1':
         criterion = nn.L1Loss()
     elif loss_function == 'kl' or loss_function == 'jsd':
-        criterion = nn.KLDivLoss()
+        criterion = nn.KLDivLoss(reduction='batchmean')
     elif loss_function == 'Cldice':
         bce = nn.BCEWithLogitsLoss().cuda()
         dice = DiceLoss().cuda()
         criterion = ClDice(bce,dice,alpha=1,beta=1)
+    elif loss_function == 'cos':
+        cos = nn.CosineSimilarity(dim=-1)
+        criterion = cos
     else:
         raise ValueError('Not supported loss.')
     return criterion.cuda()
