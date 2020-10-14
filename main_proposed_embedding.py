@@ -350,7 +350,7 @@ def train(model_seg, model_ae, train_loader, epoch,
 
         loss_embedding = float(args.embedding_alpha) * loss_embedding
 
-        #loss_embedding = 0 * loss_embedding
+        #loss_embedding = 0 * loss_embeddings
 
 
 
@@ -511,7 +511,9 @@ def select_loss(loss_function):
     elif loss_function == 'l1':
         criterion = nn.L1Loss()
     elif loss_function == 'kl' or loss_function == 'jsd':
-        criterion = nn.KLDivLoss()
+        criterion = nn.KLDivLoss(reduction='batchmean')
+    elif loss_function == 'cos':
+        criterion = nn.CosineSimilarity(dim=-1)
     elif loss_function == 'Cldice':
         bce = nn.BCEWithLogitsLoss().cuda()
         dice = DiceLoss().cuda()
@@ -528,8 +530,11 @@ def embedding_loss(embedding_loss, criterion_embedding,
 
 
     if embedding_loss == 'kl':
-        loss_embedding = criterion_embedding(F.log_softmax(bottom_seg),
-                                             F.softmax(bottom_ae))
+        loss_embedding = criterion_embedding(
+            F.log_softmax(bottom_seg.flatten(start_dim=2), dim=2).view_as(
+                bottom_seg),
+            F.softmax(bottom_ae.flatten(start_dim=2), dim=2).view_as(
+                bottom_ae))
     elif embedding_loss == 'jsd':
         loss_embedding = (0.5 * criterion_embedding(F.log_softmax(bottom_seg),
                                                     F.softmax(bottom_ae))) \
@@ -541,6 +546,9 @@ def embedding_loss(embedding_loss, criterion_embedding,
         bottom_seg = F.sigmoid(bottom_seg).cuda()
         bottom_ae = F.sigmoid(bottom_ae).cuda()
         loss_embedding = criterion_embedding(bottom_seg, bottom_ae)  # bce
+    elif embedding_loss == 'cos':
+        cos_sim = criterion_embedding(bottom_seg, bottom_ae).mean()
+        loss_embedding = 1 - cos_sim
     else:
         # MSE
         loss_embedding = criterion_embedding(bottom_seg, bottom_ae)
