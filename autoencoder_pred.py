@@ -338,13 +338,13 @@ def save_fig(org_input, org_target, prediction,
         pred_slice = prediction[int(slice_id)]
 
         target_slice_pos_pixel = target_slice.sum()
-        i_w, i_h = target_slice_pos_pixel.shape
+        #i_w, i_h = target_slice_pos_pixel.shape
         target_slice_pos_pixel_rate = np.round(target_slice_pos_pixel
-                                               / (i_w * i_h) * 100, 2)
+                                               / (256 * 256) * 100, 2)
 
         pred_slice_pos_pixel = pred_slice.sum()
         pred_slice_pos_pixel_rate = np.round(pred_slice_pos_pixel
-                                             / (i_w * i_h) * 100, 2)
+                                             / (256 * 256) * 100, 2)
 
         fig = plt.figure(figsize=(15, 5))
         ax = []

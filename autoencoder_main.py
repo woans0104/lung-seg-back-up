@@ -349,14 +349,14 @@ def validate(model, val_loader, epoch, criterion, logger, work_dir):
             ious.update(iou, input.size(0))
             dices.update(dice, input.size(0))
 
-            ###################################
-            save = 1
-            if save:
-                if epoch >= 60 :
-                    save_fig(str(epoch), ori_img, target, output, iou,
-                             work_dir,'epoch_predict', str(image_name))
-
-            #############################
+            # ###################################
+            # save = 1
+            # if save:
+            #     if epoch >= 60 :
+            #         save_fig(str(epoch), ori_img, target, output, iou,
+            #                  work_dir,'epoch_predict', str(image_name))
+            #
+            # #############################
 
             batch_time.update(time.time() - end)
             end = time.time()

@@ -349,8 +349,8 @@ def train(model_seg, model_ae, train_loader, epoch,
                                         bottom_ae,args.arch_ae_detach)
 
         loss_embedding = float(args.embedding_alpha) * loss_embedding
-
-        #loss_embedding = 0 * loss_embeddings
+        if args.embedding_loss_function == 'kl':
+            loss_embedding = loss_embedding / 256
 
 
 

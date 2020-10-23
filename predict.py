@@ -370,7 +370,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--server', default='server_D')
     parser.add_argument('--exp', type=str)
-    parser.add_argument('--file-name', default='result_clean_acd', type=str)
+    parser.add_argument('--file-name', default='result_clean_v2', type=str)
 
     parser.add_argument('--source-dataset', default='MC',
                         help='JSRT,MC,SH')
